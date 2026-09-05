@@ -1,0 +1,35 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20260905125429
+Username: CHINAMI-N79UO3R\Administrator
+RunAs User: CHINAMI-N79UO3R\Administrator
+Configuration Name: 
+Machine: CHINAMI-N79UO3R (Microsoft Windows NT 10.0.19045.0)
+Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); $OutputEncoding = [System.Text.UTF8Encoding]::new($false); $ErrorActionPreference='Continue'
+$log='D:\io.github.Rillwyn.maceditor-main\tools-install.log'
+Start-Transcript -Path $log -Force | Out-Null
+winget install --id Git.Git -e --source winget --accept-package-agreements --accept-source-agreements --silent --disable-interactivity 2>&1 | Select-Object -Last 4
+winget install --id GitHub.cli -e --source winget --accept-package-agreements --accept-source-agreements --silent --disable-interactivity 2>&1 | Select-Object -Last 4
+Stop-Transcript | Out-Null
+Process ID: 13980
+PSVersion: 5.1.19041.6456
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.19041.6456
+BuildVersion: 10.0.19041.6456
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+正在下载 https://github.com/git-for-windows/git/releases/download/v2.55.0.windows.3/Git-2.55.0.3-64-bit.exe
+已成功验证安装程序哈希
+正在启动程序包安装...
+已成功安装
+正在下载 https://github.com/cli/cli/releases/download/v2.100.0/gh_2.100.0_windows_amd64.msi
+已成功验证安装程序哈希
+正在启动程序包安装...
+已成功安装
+**********************
+Windows PowerShell transcript end
+End time: 20260905125536
+**********************

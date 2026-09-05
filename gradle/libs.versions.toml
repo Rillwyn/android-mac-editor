@@ -1,0 +1,25 @@
+[versions]
+agp = "8.13.2"
+kotlin = "2.2.10"
+appcompat = "1.6.1"
+constraintlayout = "2.1.4"
+material = "1.12.0"
+viewpager2 = "1.1.0"
+# libxposed Modern Xposed API（API 101）
+# api 101.0.1 是 101 线内的最新修复版；service 为模块与框架通信服务
+libxposed-api = "101.0.1"
+libxposed-service = "101.0.0"
+
+[plugins]
+agp-app = { id = "com.android.application", version.ref = "agp" }
+kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+
+[libraries]
+appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+viewpager2 = { group = "androidx.viewpager2", name = "viewpager2", version.ref = "viewpager2" }
+# libxposed API：编译期提供 io.github.libxposed.api.*（运行时由框架提供）
+libxposed-api = { group = "io.github.libxposed", name = "api", version.ref = "libxposed-api" }
+# libxposed service：模块 App 侧与 Xposed 框架通信（Remote Preferences / Scope / 激活检测）
+libxposed-service = { group = "io.github.libxposed", name = "service", version.ref = "libxposed-service" }

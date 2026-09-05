@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MAC 编辑器</string>
+    <string name="xposed_description">自定义 MAC 地址。</string>
+    <string name="status_activated">模块已启用</string>
+    <string name="status_not_activated">模块未启用</string>
+    <string name="status_inactive">模块未激活</string>
+    <string name="status_detail_not_activated">模块启用并重启后，首选项才能加载。</string>
+    <string name="status_detail_inactive">确保系统作用域已启用，然后应用 MAC 地址覆写以激活模块。</string>
+    <string name="status_detail_hook_on">覆写已启用：正在使用自定义 MAC</string>
+    <string name="status_detail_hook_off">覆写已禁用：正在使用默认 MAC</string>
+    <!-- 状态卡片副标题与 MAC 小字（激活时动态变化；MAC 单独用更小的等宽小字显示） -->
+    <string name="status_active_custom">已启用覆写 —— 正在使用自定义 MAC</string>
+    <string name="status_active_system">已启用覆写 —— 正在使用系统 MAC</string>
+    <string name="status_mac_details">自定义 MAC：%1$s\n系统 MAC：%2$s</string>
+    <string name="status_mac_system_only">系统 MAC：%1$s</string>
+    <!-- 状态卡扩展行（激活时显示框架信息；未激活 / Hook 关闭时显示提示） -->
+    <string name="status_title_scope_missing">模块已启用 — 作用域未生效</string>
+    <string name="status_detail_scope_missing">作用域未包含 “system”（系统框架）。请在 LSPosed 中加入该作用域并重启，Hook 才会在 system_server 中运行。</string>
+    <string name="status_extra_activation_hint">请在 LSPosed 中启用本模块，并将作用域设为“系统框架 (system)”，然后重启设备使 Hook 生效。</string>
+    <string name="status_extra_hook_off_hint">开启此开关后，下一次连接 Wi-Fi / 热点即会应用自定义 MAC。</string>
+    <string name="status_extra_framework">%1$s %2$s · Xposed API %3$d\n作用域：%4$s\n远程偏好通道：%5$s</string>
+    <string name="status_extra_scope_empty">（空）</string>
+    <string name="status_extra_remote_ok">可用</string>
+    <string name="status_extra_remote_na">不可用 —— 设置仅写入本地缓存</string>
+
+    <string name="hook_toggle_label">覆写随机 MAC</string>
+    <string name="hook_toggle_desc">必须在设置中“网络详情”的“隐私”下勾选“使用随机 MAC”</string>
+    <string name="force_mac_randomization_label">强制启用 MAC 随机化</string>
+    <string name="force_mac_randomization_desc">强制支持随机化，并在“网络详情”中显示“隐私”部分</string>
+    <string name="device_mac">系统 MAC</string>
+    <string name="current_mac">当前 MAC</string>
+    <string name="new_mac">待应用 MAC</string>
+    <string name="mac_not_set">未知</string>
+    <string name="btn_generate_mac">生成随机 MAC</string>
+    <string name="btn_set_mac">应用 MAC 地址</string>
+
+    <string name="mac_set_success">MAC 已保存。重新连接 Wi-Fi 以应用。</string>
+    <string name="open_wifi_settings">打开</string>
+    <string name="error_bad_length">错误：MAC 地址必须为 48 位（例如 00:11:22:AA:BB:CC）。</string>
+    <string name="error_all_zeros">错误：MAC 地址不能全为零。</string>
+    <string name="error_odd_first_octet">错误：MAC 地址的第一个字节必须为偶数。</string>
+
+    <string name="footer_note">需要硬件驱动支持 MAC 随机化。更改“%s”后需重启设备。</string>
+
+    <!-- 新增 AP 覆写和语言切换 -->
+    <string name="ap_mac_override_label">覆写 AP MAC 地址</string>
+    <string name="ap_mac_override_desc">将自定义 MAC 应用于移动热点（AP 模式）</string>
+    <string name="language_select">语言</string>
+    <string name="language_english">English</string>
+    <string name="language_chinese">中文</string>
+
+    <!-- 底部导航与工具栏标题 -->
+    <string name="tab_home">主页</string>
+    <string name="tab_settings">设置</string>
+    <string name="tab_about">关于</string>
+    <string name="toolbar_settings">设置</string>
+    <string name="toolbar_about">关于</string>
+
+    <!-- 关于页 -->
+    <string name="about_this_project">本项目</string>
+    <string name="about_original_project">原项目</string>
+    <string name="about_source_note">基于原项目思路，使用 libxposed Modern Xposed API（API 101）全面重写</string>
+    <string name="about_maintainer">当前维护者</string>
+    <string name="about_maintainer_name">Rillwyn</string>
+    <string name="about_version">版本 %s</string>
+    <string name="about_this_project_url">https://github.com/Rillwyn/android-mac-editor</string>
+    <string name="about_original_project_url">https://github.com/jqssun/android-mac-editor</string>
+</resources>

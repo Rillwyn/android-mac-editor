@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MAC Editor</string>
+    <string name="xposed_description">Customize MAC address.</string>
+    <string name="status_activated">Module Enabled</string>
+    <string name="status_not_activated">Module Disabled</string>
+    <string name="status_inactive">Module Inactive</string>
+    <string name="status_detail_not_activated">Preferences cannot load until module is enabled after a reboot.</string>
+    <string name="status_detail_inactive">Ensure system is enabled in scope, then apply MAC address override to activate the module.</string>
+    <string name="status_detail_hook_on">Override enabled: custom MAC in use</string>
+    <string name="status_detail_hook_off">Override disabled: default MAC in use</string>
+    <!-- 状态卡片副标题与 MAC 小字（激活时动态变化；MAC 单独用更小的等宽小字显示） -->
+    <string name="status_active_custom">Override enabled — using custom MAC</string>
+    <string name="status_active_system">Override enabled — using system MAC</string>
+    <string name="status_mac_details">Custom MAC: %1$s\nSystem MAC: %2$s</string>
+    <string name="status_mac_system_only">System MAC: %1$s</string>
+    <!-- 状态卡扩展行（激活时显示框架信息；未激活 / Hook 关闭时显示提示） -->
+    <string name="status_title_scope_missing">Module Enabled — scope not applied</string>
+    <string name="status_detail_scope_missing">Scope does not include “system” (system framework). Add it in LSPosed and reboot so the hooks run in system_server.</string>
+    <string name="status_extra_activation_hint">Enable the module in LSPosed, add scope “system framework (system)”, then reboot the device for the hooks to take effect.</string>
+    <string name="status_extra_hook_off_hint">Turn the switch on — the custom MAC will be applied on the next Wi‑Fi / hotspot connection.</string>
+    <string name="status_extra_framework">%1$s %2$s · Xposed API %3$d\nScope: %4$s\nRemote preferences: %5$s</string>
+    <string name="status_extra_scope_empty">(empty)</string>
+    <string name="status_extra_remote_ok">available</string>
+    <string name="status_extra_remote_na">unavailable — settings only apply to local cache</string>
+
+    <string name="hook_toggle_label">Override randomized MAC</string>
+    <string name="hook_toggle_desc">\"Use randomized MAC\" must be selected in \"Privacy\" under \"Network details\" in Settings</string>
+    <string name="force_mac_randomization_label">Force enable MAC randomization</string>
+    <string name="force_mac_randomization_desc">Force support for randomization and show \"Privacy\" section in \"Network details\"</string>
+    <string name="device_mac">System MAC</string>
+    <string name="current_mac">Active MAC</string>
+    <string name="new_mac">Standby MAC</string>
+    <string name="mac_not_set">Unknown</string>
+    <string name="btn_generate_mac">Generate Random MAC</string>
+    <string name="btn_set_mac">Apply MAC Address</string>
+
+    <string name="mac_set_success">MAC saved. Reconnect Wi-Fi to apply.</string>
+    <string name="open_wifi_settings">Open</string>
+    <string name="error_bad_length">Error: MAC address must be 48 bits long (e.g. 00:11:22:AA:BB:CC).</string>
+    <string name="error_all_zeros">Error: MAC address must not be all zeros.</string>
+    <string name="error_odd_first_octet">Error: MAC address must have an even first octet.</string>
+
+    <string name="footer_note">Requires hardware driver support for MAC randomization. Reboot required for \"%s\".</string>
+
+    <!-- New strings for AP override and language -->
+    <string name="ap_mac_override_label">Override AP MAC address</string>
+    <string name="ap_mac_override_desc">Apply custom MAC to mobile hotspot (AP mode)</string>
+    <string name="language_select">Language</string>
+    <string name="language_english">English</string>
+    <string name="language_chinese">中文</string>
+
+    <!-- Bottom navigation & toolbar titles -->
+    <string name="tab_home">Home</string>
+    <string name="tab_settings">Settings</string>
+    <string name="tab_about">About</string>
+    <string name="toolbar_settings">Settings</string>
+    <string name="toolbar_about">About</string>
+
+    <!-- About page -->
+    <string name="about_this_project">This Project</string>
+    <string name="about_original_project">Original Project</string>
+    <string name="about_source_note">Based on the original project\'s approach, fully rewritten with the libxposed Modern Xposed API (API 101)</string>
+    <string name="about_maintainer">Maintainer</string>
+    <string name="about_maintainer_name">Rillwyn</string>
+    <string name="about_version">Version %s</string>
+    <string name="about_this_project_url">https://github.com/Rillwyn/android-mac-editor</string>
+    <string name="about_original_project_url">https://github.com/jqssun/android-mac-editor</string>
+</resources>

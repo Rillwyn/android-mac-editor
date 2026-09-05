@@ -1,0 +1,93 @@
+# Build & Release
+# 触发方式：推送 v* tag（如 v0.2.0）或手动 workflow_dispatch。
+# 行为：
+#   1) 用 JDK21 + Android SDK 构建 release/debug APK；
+#   2) 若配置了 ANDROID_KEYSTORE_* Secrets，则用仓库密钥对 release APK 正式签名，
+#      否则 release APK 为未签名（app-release-unsigned.apk）；
+#   3) 在主仓库发布带「中英双语说明」的 GitHub Release（正文 = release-notes.md）；
+#   4) 若签名成功且配置了 XPOSED_PAT，则把 release 镜像到 Xposed Modules Repo 副仓库。
+name: Build & Release (APK)
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Configure release signing from secrets
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          if [ -n "${ANDROID_KEYSTORE_B64}" ]; then
+            mkdir -p keystore
+            echo "${ANDROID_KEYSTORE_B64}" | base64 -d > keystore/maceditor-release.p12
+            printf 'sdk.dir=%s\nstoreFile=%s/keystore/maceditor-release.p12\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\nstoreType=PKCS12\n' \
+              "$ANDROID_HOME" "$GITHUB_WORKSPACE" \
+              "$ANDROID_KEYSTORE_PASSWORD" "$ANDROID_KEY_ALIAS" "$ANDROID_KEY_PASSWORD" \
+              > local.properties
+            echo "signed=1" >> "$GITHUB_ENV"
+          else
+            echo "signed=0" >> "$GITHUB_ENV"
+            echo "::warning::No ANDROID_KEYSTORE_* secrets configured — release APK will be unsigned."
+          fi
+
+      - name: Build APKs
+        run: ./gradlew :app:assembleRelease :app:assembleDebug --no-daemon --stacktrace
+
+      - name: List artifacts
+        run: ls -la app/build/outputs/apk/release/ app/build/outputs/apk/debug/
+
+      - name: Publish release (main repository)
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body_path: release-notes.md
+          files: |
+            app/build/outputs/apk/release/app-release*.apk
+            app/build/outputs/apk/debug/app-debug.apk
+
+      # 镜像到 Xposed Modules Repo（仅在 release 已签名时，且配置了 XPOSED_PAT）
+      - name: Prepare mirror flag
+        if: env.signed == '1'
+        env:
+          XPAT: ${{ secrets.XPOSED_PAT }}
+        run: |
+          if [ -n "${XPAT}" ]; then
+            echo "mirror=1" >> "$GITHUB_ENV"
+          else
+            echo "::warning::XPOSED_PAT not configured — skip mirroring to Xposed Modules Repo."
+          fi
+
+      - name: Mirror release to Xposed Modules Repo
+        if: env.mirror == '1'
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.XPOSED_PAT }}
+          repository: Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor
+          body_path: release-notes.md
+          files: app/build/outputs/apk/release/app-release.apk
