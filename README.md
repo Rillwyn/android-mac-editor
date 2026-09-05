@@ -12,7 +12,7 @@
 > **Xposed Modules Repo mirror** (Releases + description only): [github.com/Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor](https://github.com/Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor)
 > Releases are built automatically by the `build-release.yml` workflow in the main repository (push a `v*` tag to trigger).
 
-> **Note**: This is a modified fork of the original [MAC Editor](https://github.com/jqssun/android-mac-editor) by [jqssun](https://github.com/jqssun). All credits go to the original author. This version adds several enhancements (see below). Actively maintained and extended by **Rillwyn** and **Eng. Amr Eldeeb** (community PR #1 by [engamreldeeb](https://github.com/engamreldeeb)).
+> **Note**: This is a modified fork of the original [MAC Editor](https://github.com/jqssun/android-mac-editor) by [jqssun](https://github.com/jqssun). All credits go to the original author. This version adds several enhancements (see below). Maintained by **Rillwyn** (repository maintainer) and **Eng. Amr Eldeeb** (community PR #1 by [engamreldeeb](https://github.com/engamreldeeb)).
 > **Languages**: English · 中文 · [العربية](README_AR.md) — UI supports RTL layouts.
 
 **MAC Editor** is a free and open-source Xposed module that gives you granular control over the Wi-Fi MAC address on Android devices. It supports manual MAC override and enables native MAC randomization support exposed by Android on supported hardware regardless of the OEM's implementation.
@@ -31,8 +31,8 @@ You can use it to:
 - **Force MAC randomization** – enable hidden randomization support for standard Wi-Fi, Wi‑Fi Direct, and mobile hotspot.
 - **Per‑network or per‑connection control** – works when “Use randomized MAC” is selected in Wi‑Fi network details.
 - **AP MAC override toggle** – independently enable/disable MAC replacement for the hotspot interface (default: **off**). Helps devices where changing AP MAC breaks hotspot functionality.
-- **Multi‑language UI** – English, 中文 and العربية (with RTL layout support), switchable from the **Settings** page.
-- **Three‑page UI (since v0.1.0)** – **Home** (status card, MAC override switch, MAC address card), **Settings** (language, force randomization, AP override), and **About** (project links, maintainer, version). Switch by bottom navigation tabs or swiping left/right.
+- **Multi‑language UI** – English, 中文 and العربية (with RTL layout support), switchable from the **Settings** page via a Material 3 dropdown.
+- **Three‑page UI (since v0.1.0)** – **Home** (status card, MAC override switch, MAC address card), **Settings** (language dropdown, force randomization, AP override), and **About** (project links, maintainer, contributor tree, version). Switch by bottom navigation tabs or swiping left/right.
 
 ## Compatibility
 
@@ -98,9 +98,9 @@ If you need a custom MAC for hotspot as well, simply turn this switch **on**.
 
 ## Language Switching
 
-The app supports English and Chinese. To switch:
+The app supports English, Chinese, and Arabic. To switch:
 - Open the **Settings** page (bottom navigation).
-- Tap **English** or **中文** under **Language**.
+- Select **English**, **中文**, or **العربية** from the **Language** dropdown.
 - The UI refreshes immediately and returns to the page you were on.
 
 ## Notes for Qualcomm Devices

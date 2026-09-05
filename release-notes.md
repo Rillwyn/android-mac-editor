@@ -49,3 +49,31 @@
 - Xposed 模块镜像仓库：https://github.com/Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor
 - 文档见主仓库 README（EN/CN/AR）与 CHANGELOG。
 - 基于 [MAC Editor](https://github.com/jqssun/android-mac-editor)（作者 [jqssun](https://github.com/jqssun)），AGPL-3.0。
+
+---
+
+# 🇸🇦 العربية
+
+**v0.2.2 — تحسينات الواجهة: قائمة منسدلة للغات وشجرة المساهمين في صفحة حول**
+
+## ✨ ما الجديد في v0.2.2
+- **الإعدادات**: تم استبدال أزرار اختيار اللغة الثلاثة بقائمة منسدلة بتصميم Material 3 (English / 中文 / العربية).
+- **حول**: يظهر **Rillwyn** كمسؤول للمستودع، مع بطاقة قابلة للطي لـ **المساهمون** تضم **Rillwyn** و **Eng. Amr Eldeeb** — يمكن توسيع كل اسم لعرض مساهماته بالتفصيل لكل إصدار (باللغات الإنجليزية والصينية والعربية).
+
+## أبرز المميزات التراكمية (منذ v0.2.0)
+- مبني على **libxposed Modern Xposed API (API 101)** — دون أي اعتماد على XposedBridge القديم.
+- **دعم واسع لشبكات Wi-Fi لمختلف الشركات المصنعة** (AOSP و Samsung و Xiaomi و MediaTek و Huawei وغيرها)، واكتشاف ديناميكي لواجهات نقطة الاتصال، وقراءة MAC المصنعي للشركات.
+- **تطبيق فوري بدون نقرة** — تتم مزامنة المفاتيح وتعديلات MAC مع واجهات STA/AP فورًا.
+- **دعم كامل للغة العربية واتجاه RTL**، تصميم Material 3، تفضيلات بعيدة (Remote Preferences)، وكشف تفعيل عبر XposedService.
+
+## ⚠️ ملاحظات التثبيت
+- يتطلب Root مع تثبيت LSPosed يدعم Modern Xposed API (الإصدار ≥ 101).
+- تفعيل الوحدة بنطاق **system** (إطار النظام) وإعادة تشغيل الجهاز.
+- اسم الحزمة / معرّف التطبيق: `io.github.Rillwyn.androidmaceditor`.
+
+## 🔗 الروابط
+- المستودع الرئيسي: https://github.com/Rillwyn/android-mac-editor
+- مرآة مستودع وحدات Xposed: https://github.com/Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor
+- الوثائق: README (EN/CN/AR) وسجل التغييرات CHANGELOG في المستودع الرئيسي.
+- مستند على [MAC Editor](https://github.com/jqssun/android-mac-editor) للمطوّر [jqssun](https://github.com/jqssun)، بترخيص AGPL-3.0.
+

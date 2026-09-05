@@ -12,7 +12,7 @@
 > **Xposed 模块镜像仓库**（仅同步 Release 与说明）：[github.com/Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor](https://github.com/Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor)
 > Release 由主仓库的 `build-release.yml` 工作流自动构建发布（推送 `v*` tag 即触发）。
 
-> **注意**：本项目是基于 [MAC Editor](https://github.com/jqssun/android-mac-editor) 原项目（作者 [jqssun](https://github.com/jqssun)）的修改版。所有原始版权归原作者所有。此版本增加了若干增强功能（详见下文）。当前由 **Rillwyn** 与 **Eng. Amr Eldeeb** 共同维护与扩展（社区 [PR #1](https://github.com/Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor/pull/1)，作者 [engamreldeeb](https://github.com/engamreldeeb)）。
+> **注意**：本项目是基于 [MAC Editor](https://github.com/jqssun/android-mac-editor) 原项目（作者 [jqssun](https://github.com/jqssun)）的修改版。所有原始版权归原作者所有。此版本增加了若干增强功能（详见下文）。当前由 **Rillwyn**（仓库维护者）与 **Eng. Amr Eldeeb**（社区 [PR #1](https://github.com/Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor/pull/1)，作者 [engamreldeeb](https://github.com/engamreldeeb)）共同维护与扩展。
 > **语言**：English · 中文 · [العربية](README_AR.md) —— 界面支持 RTL 布局。
 
 **MAC Editor** 是一款免费开源的 Xposed 模块，让您精细控制 Android 设备的 Wi-Fi MAC 地址。它支持手动覆写 MAC，并能强制开启 Android 原生 MAC 随机化功能（只要硬件支持，无需 OEM 额外实现）。
@@ -31,8 +31,8 @@
 - **强制 MAC 随机化** – 对标准 Wi-Fi、Wi‑Fi Direct 和移动热点启用隐藏的随机化支持。
 - **按网络/按连接控制** – 在 Wi‑Fi 网络详情中勾选“使用随机 MAC”后生效。
 - **AP MAC 覆写开关** – 独立开启/关闭对热点接口（`wlan2`）的 MAC 替换（默认 **关闭**）。可解决部分设备因修改热点 MAC 导致热点无法启动的问题。
-- **多语言界面** – 支持 English、中文与 العربية（含 RTL 布局），可在**设置**页面随时切换。
-- **三页面 UI（自 v0.1.0）** – **主页**（状态卡片、覆写随机 MAC 开关、MAC 地址卡片）、**设置**（语言、强制随机化、AP 覆写）、**关于**（项目链接、维护者、版本）。通过底部导航或左右滑动切换。
+- **多语言界面** – 支持 English、中文与 العربية（含 RTL 布局），可在**设置**页面通过 Material 3 下拉菜单随时切换。
+- **三页面 UI（自 v0.1.0）** – **主页**（状态卡片、覆写随机 MAC 开关、MAC 地址卡片）、**设置**（语言下拉框、强制随机化、AP 覆写）、**关于**（项目链接、维护者与贡献者树、版本）。通过底部导航或左右滑动切换。
 
 ## 兼容性
 
@@ -97,9 +97,9 @@
 
 ## 语言切换
 
-应用支持英文和中文。切换方法：
+应用支持英文、中文与阿拉伯语。切换方法：
 - 打开**设置**页面（底部导航）。
-- 点击**语言**下的 **English** 或 **中文**。
+- 在**语言**下拉菜单中选择 **English**、**中文** 或 **العربية**。
 - 界面会立即刷新，并回到您之前所在的页面。
 
 ## 高通设备注意事项
