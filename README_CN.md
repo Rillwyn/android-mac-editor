@@ -1,5 +1,7 @@
 # MAC Editor for Android（修改版）
 
+[English](README.md) | [中文](README_CN.md) | [العربية](README_AR.md)
+
 [![release](https://img.shields.io/github/v/release/Rillwyn/android-mac-editor?style=flat&label=release&color=blue)](https://github.com/Rillwyn/android-mac-editor/releases)
 [![build](https://img.shields.io/github/actions/workflow/status/Rillwyn/android-mac-editor/build-release.yml?style=flat&label=build)](https://github.com/Rillwyn/android-mac-editor/actions/workflows/build-release.yml)
 [![downloads](https://img.shields.io/github/downloads/Rillwyn/android-mac-editor/total?style=flat&label=downloads)](https://github.com/Rillwyn/android-mac-editor/releases)
