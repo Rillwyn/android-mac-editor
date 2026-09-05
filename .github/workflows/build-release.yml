@@ -83,25 +83,40 @@ jobs:
             echo "::warning::XPOSED_PAT not configured — skip mirroring to Xposed Modules Repo."
           fi
 
+      # 先在镜像仓库创建同名 tag（软锚点），避免 softprops 生成 untagged 草稿
+      - name: Anchor tag on Xposed mirror
+        if: env.mirror == '1'
+        env:
+          XT: ${{ secrets.XPOSED_PAT }}
+        run: |
+          curl -s -X POST -H "Authorization: token ${XT}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor/git/refs" \
+            -d "{\"ref\":\"refs/tags/${GITHUB_REF_NAME}\",\"sha\":\"${GITHUB_SHA}\"}" >/dev/null || true
+
       - name: Mirror release to Xposed Modules Repo
         if: env.mirror == '1'
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.XPOSED_PAT }}
           repository: Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor
+          tag_name: ${{ github.ref_name }}
+          target_commitish: main
           body_path: release-notes.md
           files: app/build/outputs/apk/release/app-release.apk
 
-      # 组织仓库可能把镜像 Release 创建为草稿：等待其生成后取消草稿并公开发布
+      # 保险：若镜像 Release 仍为草稿，按列表找到并公开发布
       - name: Publish mirror release (un-draft)
         if: env.mirror == '1'
         env:
           XT: ${{ secrets.XPOSED_PAT }}
         run: |
-          api="https://api.github.com/repos/Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor/releases/tags/${GITHUB_REF_NAME}"
+          export REF="${GITHUB_REF_NAME}"
           id=""
           for i in 1 2 3 4 5 6; do
-            id=$(curl -s -H "Authorization: token ${XT}" "${api}" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("id") or "")' 2>/dev/null)
+            list=$(curl -s -H "Authorization: token ${XT}" \
+              "https://api.github.com/repos/Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor/releases?per_page=15")
+            id=$(echo "${list}" | python3 -c 'import sys,json,os;d=json.load(sys.stdin);print(next((r["id"] for r in d if r.get("tag_name")==os.environ["REF"] and r.get("draft")), "") or "")' 2>/dev/null)
             [ -n "$id" ] && break
             sleep 5
           done
