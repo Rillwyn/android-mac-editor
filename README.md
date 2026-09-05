@@ -31,17 +31,17 @@ You can use it to:
 - **Force MAC randomization** – enable hidden randomization support for standard Wi-Fi, Wi‑Fi Direct, and mobile hotspot.
 - **Per‑network or per‑connection control** – works when “Use randomized MAC” is selected in Wi‑Fi network details.
 - **AP MAC override toggle** – independently enable/disable MAC replacement for the hotspot interface (default: **off**). Helps devices where changing AP MAC breaks hotspot functionality.
-- **Multi‑language UI** – English, 中文 and العربية (with RTL layout support), switchable from the **Settings** page via a Material 3 dropdown.
-- **Three‑page UI (since v0.1.0)** – **Home** (status card, MAC override switch, MAC address card), **Settings** (language dropdown, force randomization, AP override), and **About** (project links, maintainer, contributor tree, version). Switch by bottom navigation tabs or swiping left/right.
+- **Multi‑language UI** – English, 中文 and العربية (with dynamic live RTL/LTR layout switching), switchable from the **Settings** page via a Material 3 dropdown.
+- **Three‑page UI (since v0.1.0)** – **Home** (status card, MAC override switch, MAC address card), **Settings** (language dropdown, force randomization, AP override), and **About** (project links, maintainer, collapsible contributor tree with auto-scrolling, version). Switch by bottom navigation tabs or swiping left/right.
 
 ## Compatibility
 
 - Android 12+ (tested up to Android 16 QPR2)
-- Rooted devices with an **LSPosed** framework that supports the **libxposed Modern Xposed API (API ≥ 101)** (since v0.2.0 this module no longer uses the legacy XposedBridge interface)
+- Rooted devices with an **LSPosed** or modern Xposed framework that supports the **libxposed Modern Xposed API (API ≥ 101, targeting API 102)** (since v0.2.0 this module no longer uses the legacy XposedBridge interface)
 
 ## Implementation Details
 
-This module is built on the **libxposed Modern Xposed API (API 101)** (fully migrated in v0.2.0, replacing the previous YukiHookAPI / XposedBridge implementation). The entry class `MacEditorModule` extends `io.github.libxposed.api.XposedModule` and is declared in `META-INF/xposed/java_init.list`; `module.prop` declares `minApiVersion=101` / `targetApiVersion=101` and `scope.list` targets `system` (system_server).
+This module is built on the **libxposed Modern Xposed API (API 101/102)** (fully migrated in v0.2.0, updated for API 102 in v0.2.5). The entry class `MacEditorModule` extends `io.github.libxposed.api.XposedModule` and is declared in `META-INF/xposed/java_init.list`; `module.prop` declares `minApiVersion=101` / `targetApiVersion=102` and `scope.list` targets `system` (system_server).
 On modern Android, the Wi-Fi subsystem (via `WifiNative`) can randomize MAC addresses per network or per connection. This module hooks the following system server methods to allow manual MAC assignment when randomization is enabled:
 
 - `WifiNative.setStaMacAddress()` / `WifiVendorHal.setStaMacAddress()` – for station (client) Wi‑Fi.
@@ -101,7 +101,7 @@ If you need a custom MAC for hotspot as well, simply turn this switch **on**.
 The app supports English, Chinese, and Arabic. To switch:
 - Open the **Settings** page (bottom navigation).
 - Select **English**, **中文**, or **العربية** from the **Language** dropdown.
-- The UI refreshes immediately and returns to the page you were on.
+- The UI refreshes immediately (switching layout direction between RTL and LTR live) and returns to the page you were on without needing an app restart.
 
 ## Notes for Qualcomm Devices
 

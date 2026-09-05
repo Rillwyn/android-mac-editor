@@ -1,9 +1,9 @@
 id=io.github.Rillwyn.androidmaceditor
 name=MAC Editor
-version=0.2.2
-versionCode=14
+version=0.2.5
+versionCode=17
 author=Rillwyn & Eng. Amr Eldeeb
 description=Customize MAC address.
 minApiVersion=101
-targetApiVersion=101
+targetApiVersion=102
 staticScope=true

@@ -16,3 +16,4 @@ keystore/
 pack-into-package.txt
 .agent/
 .agents/
+.vscode/

@@ -31,17 +31,17 @@
 - **强制 MAC 随机化** – 对标准 Wi-Fi、Wi‑Fi Direct 和移动热点启用隐藏的随机化支持。
 - **按网络/按连接控制** – 在 Wi‑Fi 网络详情中勾选“使用随机 MAC”后生效。
 - **AP MAC 覆写开关** – 独立开启/关闭对热点接口（`wlan2`）的 MAC 替换（默认 **关闭**）。可解决部分设备因修改热点 MAC 导致热点无法启动的问题。
-- **多语言界面** – 支持 English、中文与 العربية（含 RTL 布局），可在**设置**页面通过 Material 3 下拉菜单随时切换。
-- **三页面 UI（自 v0.1.0）** – **主页**（状态卡片、覆写随机 MAC 开关、MAC 地址卡片）、**设置**（语言下拉框、强制随机化、AP 覆写）、**关于**（项目链接、维护者与贡献者树、版本）。通过底部导航或左右滑动切换。
+- **多语言界面** – 支持 English、中文与 العربية（支持动态无缝 RTL/LTR 布局即时切换），可在**设置**页面通过 Material 3 下拉菜单随时切换。
+- **三页面 UI（自 v0.1.0）** – **主页**（状态卡片、覆写随机 MAC 开关、MAC 地址卡片）、**设置**（语言下拉框、强制随机化、AP 覆写）、**关于**（项目链接、维护者与可折叠贡献者树、版本）。通过底部导航或左右滑动切换。
 
 ## 兼容性
 
 - Android 12+（已测试至 Android 16 QPR2）
-- 已 Root 设备，并安装支持 **libxposed Modern Xposed API（API ≥ 101）** 的 **LSPosed** 框架（自 v0.2.0 起，本模块不再使用 legacy XposedBridge 接口）
+- 已 Root 设备，并安装支持 **libxposed Modern Xposed API（API ≥ 101，针对 API 102）** 的 **LSPosed** 等现代框架（自 v0.2.0 起，本模块不再使用 legacy XposedBridge 接口）
 
 ## 实现原理
 
-本项目基于 **libxposed Modern Xposed API（API 101）** 实现（v0.2.0 起全面迁移，替代旧版 YukiHookAPI / XposedBridge 方案）。模块入口 `MacEditorModule` 继承 `io.github.libxposed.api.XposedModule`，在 `META-INF/xposed/java_init.list` 中声明；`module.prop` 声明 `minApiVersion=101` / `targetApiVersion=101`，作用域 `scope.list` = `system`（system_server）。
+本项目基于 **libxposed Modern Xposed API（API 101/102）** 实现（v0.2.0 起全面迁移，v0.2.5 支持 API 102 现代标准）。模块入口 `MacEditorModule` 继承 `io.github.libxposed.api.XposedModule`，在 `META-INF/xposed/java_init.list` 中声明；`module.prop` 声明 `minApiVersion=101` / `targetApiVersion=102`，作用域 `scope.list` = `system`（system_server）。
 
 在较新 Android 版本中，Wi-Fi 子系统（通过 `WifiNative`）支持按网络或按连接随机化 MAC 地址。本模块钩住系统服务的以下方法，在随机化启用时手动指定 MAC：
 
@@ -100,7 +100,7 @@
 应用支持英文、中文与阿拉伯语。切换方法：
 - 打开**设置**页面（底部导航）。
 - 在**语言**下拉菜单中选择 **English**、**中文** 或 **العربية**。
-- 界面会立即刷新，并回到您之前所在的页面。
+- 界面与布局方向（RTL ↔ LTR）会立即刷新并回到您之前所在的页面，无需手动重开应用。
 
 ## 高通设备注意事项
 
