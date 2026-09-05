@@ -6,6 +6,20 @@ All changes are made under the terms of the original license (AGPL-3.0), and all
 
 ---
 
+## [0.2.1] - 2026-09-05
+
+### Merged (community PR #1 by [engamreldeeb](https://github.com/engamreldeeb))
+- **Multi-vendor compatibility**: the hooker now probes AOSP + OEM `WifiNative` / `WifiVendorHal` stacks (Samsung `Sem*`, Xiaomi `Miui*`, MediaTek `Mtk*`, Huawei `Hw*`, …), watches `ServiceManager.addService("wifi")` for late-loading class loaders, detects dynamic hotspot interfaces (`ap*`, `softap*`, `swlan*`, `wlanN`) and reads vendor factory-MAC storage (Samsung EFS, Qualcomm `wlan_mac.bin`, …) — all ported onto the libxposed API 101 engine.
+- **Zero-click instant apply**: UI switch/MAC changes now broadcast `ACTION_CONFIG_CHANGED`; `system_server` applies the custom MAC to the STA and (optionally) AP interfaces immediately — no manual “Apply” / hotspot toggle needed.
+- **Arabic & RTL**: full `values-ar` translation, RTL layout support (`android:supportsRtl`), LTR protection for hex MAC fields, and a third language selector (English / 中文 / العربية) in Settings.
+- **Co-maintainer credit**: author/About updated to **Rillwyn & Eng. Amr Eldeeb**.
+
+### Changed
+- Version bumped to `0.2.1` (`versionCode` 12 → 13); `module.prop` synced.
+- Docs updated: README (EN/CN/AR), CHANGELOG (EN/CN/AR), release notes.
+
+---
+
 ## [0.2.0] - 2026-09-05
 
 ### Core refactor: migrated to the libxposed Modern Xposed API (API 101)

@@ -35,6 +35,10 @@ object WifiConfigHooker {
     @Volatile
     private var forceShowMacRandomization = true
 
+    /** 缓存模块总开关（与 WifiServiceHooker 联动的本地镜像） */
+    @Volatile
+    private var hookActive = true
+
     /**
      * 在 [module]（system_server 实例）中安装 Hook。
      *
@@ -45,10 +49,15 @@ object WifiConfigHooker {
         // 读取远程偏好并监听变化（framework 数据库，跨进程实时同步）
         val prefs = runCatching { module.getRemotePreferences(PREFS_NAME) }.getOrNull()
         if (prefs != null) {
+            hookActive = prefs.getBoolean("hookActive", true)
             forceShowMacRandomization = prefs.getBoolean("forceShowMacRandomization", true)
             prefs.registerOnSharedPreferenceChangeListener { _, _ ->
+                hookActive = prefs.getBoolean("hookActive", hookActive)
                 forceShowMacRandomization = prefs.getBoolean("forceShowMacRandomization", true)
-                module.log(Log.DEBUG, TAG, "forceShowMacRandomization updated to $forceShowMacRandomization")
+                module.log(
+                    Log.DEBUG, TAG,
+                    "flags updated: hookActive=$hookActive, forceShowMacRandomization=$forceShowMacRandomization"
+                )
             }
         }
 
@@ -68,6 +77,7 @@ object WifiConfigHooker {
         runCatching {
             module.hook(method).intercept { chain ->
                 val result = chain.proceed()
+                if (!hookActive) return@intercept result
                 if (!forceShowMacRandomization) return@intercept result
                 val res = chain.thisObject as? Resources ?: return@intercept result
                 val id = chain.getArg(0) as? Int ?: return@intercept result

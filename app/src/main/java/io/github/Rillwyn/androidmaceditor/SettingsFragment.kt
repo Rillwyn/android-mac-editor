@@ -1,12 +1,14 @@
 package io.github.Rillwyn.androidmaceditor
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import io.github.Rillwyn.androidmaceditor.databinding.FragmentSettingsBinding
+import io.github.Rillwyn.androidmaceditor.hookers.WifiServiceHooker
 import io.github.Rillwyn.androidmaceditor.utils.PrefManager
 
 class SettingsFragment : Fragment() {
@@ -41,11 +43,15 @@ class SettingsFragment : Fragment() {
         _binding = null
     }
 
-    /** 语言行内单选：初始化选中态 + 点击即保存并重建 Activity（恢复原所在页面） */
+    /** 语言行内单选（English / 中文 / العربية）：点击即保存并重建 Activity（恢复原所在页面） */
     private fun _setupLanguageToggle() {
         binding.languageToggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (updatingUI || !isChecked) return@addOnButtonCheckedListener
-            val lang = if (checkedId == R.id.language_zh) "zh" else "en"
+            val lang = when (checkedId) {
+                R.id.language_zh -> "zh"
+                R.id.language_ar -> "ar"
+                else -> "en"
+            }
             // 记住当前 tab（设置页 index = 1），recreate 后由 MainActivity 恢复
             requireContext().getSharedPreferences(MacBroadcastReceiver.PREFS_NAME, Context.MODE_PRIVATE)
                 .edit()
@@ -60,10 +66,14 @@ class SettingsFragment : Fragment() {
         binding.forceRandomizationSwitch.setOnCheckedChangeListener { _, checked ->
             if (updatingUI) return@setOnCheckedChangeListener
             PrefManager.setForceShowMacRandomization(requireContext(), checked)
+            // 零点击：立即广播让 system_server 同步最新配置
+            requireContext().sendBroadcast(Intent(WifiServiceHooker.ACTION_CONFIG_CHANGED))
         }
         binding.apMacOverrideSwitch.setOnCheckedChangeListener { _, checked ->
             if (updatingUI) return@setOnCheckedChangeListener
             PrefManager.setApMacOverride(requireContext(), checked)
+            // 零点击：AP 覆写开关变化时立即应用/同步
+            requireContext().sendBroadcast(Intent(WifiServiceHooker.ACTION_CONFIG_CHANGED))
         }
     }
 
@@ -81,9 +91,14 @@ class SettingsFragment : Fragment() {
         val checkedId = when (currentLang) {
             "en" -> R.id.language_en
             "zh" -> R.id.language_zh
+            "ar" -> R.id.language_ar
             else -> {
                 val sysLang = resources.configuration.locales[0].language
-                if (sysLang.startsWith("zh")) R.id.language_zh else R.id.language_en
+                when {
+                    sysLang.startsWith("zh") -> R.id.language_zh
+                    sysLang.startsWith("ar") -> R.id.language_ar
+                    else -> R.id.language_en
+                }
             }
         }
         binding.languageToggle.check(checkedId)

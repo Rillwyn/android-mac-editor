@@ -10,7 +10,8 @@
 > **Xposed Modules Repo mirror** (Releases + description only): [github.com/Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor](https://github.com/Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor)
 > Releases are built automatically by the `build-release.yml` workflow in the main repository (push a `v*` tag to trigger).
 
-> **Note**: This is a modified fork of the original [MAC Editor](https://github.com/jqssun/android-mac-editor) by [jqssun](https://github.com/jqssun). All credits go to the original author. This version adds several enhancements (see below).
+> **Note**: This is a modified fork of the original [MAC Editor](https://github.com/jqssun/android-mac-editor) by [jqssun](https://github.com/jqssun). All credits go to the original author. This version adds several enhancements (see below). Actively maintained and extended by **Rillwyn** and **Eng. Amr Eldeeb** (community PR #1 by [engamreldeeb](https://github.com/engamreldeeb)).
+> **Languages**: English · 中文 · [العربية](README_AR.md) — UI supports RTL layouts.
 
 **MAC Editor** is a free and open-source Xposed module that gives you granular control over the Wi-Fi MAC address on Android devices. It supports manual MAC override and enables native MAC randomization support exposed by Android on supported hardware regardless of the OEM's implementation.
 
@@ -23,10 +24,12 @@ You can use it to:
 ## Features
 
 - **Manual MAC override** – set any valid unicast MAC address (first octet even).
+- **Instant (zero-click) apply** – toggling switches or changing the MAC immediately syncs the value to the Wi‑Fi / hotspot HAL and active interfaces (since v0.2.1).
+- **Multi-vendor support** – automatic discovery of AOSP plus OEM `WifiNative`/`WifiVendorHal` stacks (Samsung, Xiaomi, MediaTek, Huawei…), dynamic AP-interface detection and vendor factory-MAC reading (since v0.2.1).
 - **Force MAC randomization** – enable hidden randomization support for standard Wi-Fi, Wi‑Fi Direct, and mobile hotspot.
 - **Per‑network or per‑connection control** – works when “Use randomized MAC” is selected in Wi‑Fi network details.
 - **AP MAC override toggle** – independently enable/disable MAC replacement for the hotspot interface (default: **off**). Helps devices where changing AP MAC breaks hotspot functionality.
-- **Multi‑language UI** – supports English and Chinese, switchable from the **Settings** page.
+- **Multi‑language UI** – English, 中文 and العربية (with RTL layout support), switchable from the **Settings** page.
 - **Three‑page UI (since v0.1.0)** – **Home** (status card, MAC override switch, MAC address card), **Settings** (language, force randomization, AP override), and **About** (project links, maintainer, version). Switch by bottom navigation tabs or swiping left/right.
 
 ## Compatibility
@@ -41,6 +44,8 @@ On modern Android, the Wi-Fi subsystem (via `WifiNative`) can randomize MAC addr
 
 - `WifiNative.setStaMacAddress()` / `WifiVendorHal.setStaMacAddress()` – for station (client) Wi‑Fi.
 - `WifiNative.setApMacAddress()` / `WifiVendorHal.setApMacAddress()` – for access point (hotspot) mode.
+- Since **v0.2.1** the hooker also probes OEM `WifiNative`/`WifiVendorHal` classes (`Sem*`, `Miui*`, `Mtk*`, `Hw*`…), watches `ServiceManager.addService("wifi")`, discovers dynamic AP interfaces (`ap*`, `softap*`, `swlan*`, `wlanN`), and reads vendor factory-MAC storage (Samsung EFS, Qualcomm `wlan_mac.bin`, …).
+- Setting changes are applied **instantly** (zero-click): the app sends `ACTION_CONFIG_CHANGED` and `system_server` applies the custom MAC to the STA and (optionally) AP interfaces right away.
 
 The module also forces the system to believe that MAC randomization is supported by hooking **`Resources.getBoolean(int)` in `system_server`** and returning true for the following resource names:
 - `config_wifi_connected_mac_randomization_supported`

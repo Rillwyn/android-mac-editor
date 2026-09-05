@@ -56,6 +56,14 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="@string/language_chinese" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/language_ar"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/language_arabic" />
                 </com.google.android.material.button.MaterialButtonToggleGroup>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>

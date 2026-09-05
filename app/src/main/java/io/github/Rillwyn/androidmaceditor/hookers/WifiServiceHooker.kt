@@ -15,21 +15,29 @@ import java.io.File
 import java.lang.reflect.Method
 
 /**
- * 系统框架（system_server）Hook 实现 —— 现代 libxposed API（API 101）。
+ * 系统框架（system_server）Hook 引擎 —— 现代 libxposed API（API 101）。
  *
- * - 用户设置通过框架数据库的 **Remote Preferences** 跨进程读写：
- *   模块 App 内经 [io.github.libxposed.service.XposedService] 可读可写，
- *   这里（system_server）经 [XposedModule.getRemotePreferences] 只读，并注册
- *   变更监听，开关与自定义 MAC 修改后无需重启即生效（替代旧 XSharedPreferences 方案）；
- * - 使用拦截链模型（`hook(Executable).intercept {}`）替代旧 `Member.hook` / finder 写法；
- * - Hook `WifiNative` 全部构造器缓存实例，保证“应用 MAC”随时可用。
+ * 架构（吸收自 libxposed 重构 + Xposed-Modules-Repo PR #1 的多厂商/零点击特性）：
+ * - 用户设置通过框架数据库的 **Remote Preferences** 跨进程读写（App 内读写，
+ *   system_server 内只读 + 变更监听，替代旧 XSharedPreferences 方案）；
+ * - 拦截链模型（`hook(Executable).intercept {}`）替代旧 `Member.hook` / finder 写法；
+ * - **多厂商发现**：遍历 AOSP 与 Samsung / Xiaomi / MediaTek / Huawei 等定制
+ *   `WifiNative` / `WifiVendorHal` 类；监听 `SystemServiceManager.loadClassFromLoader`
+ *   与 `ServiceManager.addService("wifi")`，并在延迟兜底线程按需解析 Wi-Fi 服务 ClassLoader；
+ * - **动态 AP 接口**：缓存 `ap*` / `softap*` / `swlan*` / `wlanN` 等接口名，
+ *   覆写开关开启时同步应用到 AP 接口；
+ * - **零点击即时生效**：App 内开关/MAC 变更即发送 [ACTION_CONFIG_CHANGED]，
+ *   system_server 侧立即把自定义 MAC 应用到 STA 与（可选）AP 接口。
  */
 object WifiServiceHooker {
 
-    /** 应用点击“应用 MAC”时发送的广播 Action */
+    /** 应用点击“应用 MAC”/主动应用时发送的广播 Action */
     const val ACTION_APPLY_MAC = "${BuildConfig.APPLICATION_ID}.ACTION_APPLY_MAC"
 
-    /** 应用打开/切回前台时查询当前系统 MAC 的广播 Action（替代旧 YukiHookDataChannel） */
+    /** 应用设置变化（开关/MAC）时发送的广播 Action —— 触发零点击即时生效 */
+    const val ACTION_CONFIG_CHANGED = "${BuildConfig.APPLICATION_ID}.ACTION_CONFIG_CHANGED"
+
+    /** 应用打开/切回前台时查询当前系统 MAC 的广播 Action */
     const val ACTION_QUERY_MAC = "${BuildConfig.APPLICATION_ID}.ACTION_QUERY_MAC"
 
     /** 广播中携带的目标 MAC 键名 */
@@ -41,8 +49,35 @@ object WifiServiceHooker {
     /** Remote Preferences group 名（与模块 App 侧保持一致） */
     const val PREFS_NAME = "io.github.Rillwyn.androidmaceditor"
 
-    private const val WIFI_NATIVE_CLASS = "com.android.server.wifi.WifiNative"
-    private const val WIFI_VENDOR_HAL_CLASS = "com.android.server.wifi.WifiVendorHal"
+    /** 目标 Wi-Fi Native 类列表（AOSP + 厂商定制 ROM） */
+    private val TARGET_WIFI_NATIVE_CLASSES = listOf(
+        "com.android.server.wifi.WifiNative",
+        "com.android.server.wifi.SemWifiNative",
+        "com.samsung.android.server.wifi.SemWifiNative",
+        "com.android.server.wifi.MiuiWifiNative",
+        "com.mediatek.server.wifi.MtkWifiNative",
+        "com.android.server.wifi.HwWifiNative",
+        "com.huawei.server.wifi.HwWifiNative"
+    )
+
+    /** 目标 Wi-Fi HAL 类列表（AOSP + Samsung 等厂商定制） */
+    private val TARGET_WIFI_HAL_CLASSES = listOf(
+        "com.android.server.wifi.WifiVendorHal",
+        "com.android.server.wifi.SemWifiVendorHal",
+        "com.samsung.android.server.wifi.SemWifiVendorHal"
+    )
+
+    /** 厂商出厂 MAC 存储候选文件（多厂商回退） */
+    private val FACTORY_MAC_FILES = listOf(
+        "/mnt/vendor/persist/qca6390/wlan_mac.bin",
+        "/mnt/vendor/persist/wlan_mac.bin",
+        "/persist/wlan_mac.bin",
+        "/vendor/firmware/wlan/qca_cld/WCNSS_qcom_cfg.ini",
+        "/efs/wifi/.mac.info",
+        "/sec_efs/wifi/.mac.info",
+        "/data/vendor/wifi/mac_addr",
+        "/data/vendor/mac_addr"
+    )
 
     /** 模块实例（system_server 内），提供 hook / log / 远程偏好能力 */
     @Volatile
@@ -52,13 +87,21 @@ object WifiServiceHooker {
     @Volatile
     private var nativeInstance: Any? = null
 
-    /** 当前 STA 接口名（wlan0） */
+    /** 最近一次捕获的 STA 客户端接口名（如 wlan0） */
     @Volatile
     private var lastIface: String? = null
+
+    /** 最近一次捕获的 AP 热点接口名（ap0 / softap0 / swlan0 / wlan1…） */
+    @Volatile
+    private var lastApIface: String? = null
 
     /** 缓存 setStaMacAddress 方法引用 */
     @Volatile
     private var setStaMethod: Method? = null
+
+    /** 缓存 setApMacAddress 方法引用 */
+    @Volatile
+    private var setApMethod: Method? = null
 
     /** 广播接收器是否已注册 */
     @Volatile
@@ -82,12 +125,13 @@ object WifiServiceHooker {
     @Volatile
     private var customMac = ""
 
+    // ------------------------------------------------------------------
+    // 安装入口
+    // ------------------------------------------------------------------
+
     /**
-     * 安装全部 Hook。由 [io.github.Rillwyn.androidmaceditor.MacEditorModule] 在
+     * 安装全部 Hook。由模块入口在 system_server 的
      * [io.github.libxposed.api.XposedModuleInterface.onSystemServerStarting] 回调中调用。
-     *
-     * @param instance 模块实例
-     * @param loader   system_server 类加载器
      */
     fun install(instance: XposedModule, loader: ClassLoader) {
         module = instance
@@ -104,40 +148,93 @@ object WifiServiceHooker {
                 if (key == "customMac") {
                     customMac = prefs.getString("customMac", "") ?: ""
                 }
-                instance.log(Log.DEBUG, TAG, "preference changed: key=$key, hookActive=$hookActive, apMacOverride=$apMacOverride, customMac=$customMac")
+                instance.log(
+                    Log.DEBUG, TAG,
+                    "preference changed: key=$key, hookActive=$hookActive, apMacOverride=$apMacOverride, customMac=$customMac"
+                )
             }
         } else {
             instance.log(Log.WARN, TAG, "remote preferences unavailable, hooks use defaults")
         }
 
-        // 尝试 1：直接 Hook（WifiNative 等已可加载时立即生效）
-        tryHookWifiNative(loader)
-
-        // 尝试 2：监听 SystemServiceManager 加载 WifiService 的时刻再次 Hook，
-        // 确保任何加载时序下都能装上
+        // 策略 1：直接 Hook（目标类此时已可加载则立即生效）
+        tryHookWifiClasses(loader)
+        // 策略 2：监听 SystemServiceManager 加载 WifiService 的时机再次安装
         hookSystemServiceManager(loader)
+        // 策略 3：监听 ServiceManager.addService("wifi") 捕获定制 ROM 的独立 ClassLoader
+        hookServiceManager(loader)
 
-        // 注册“应用 MAC”/“查询 MAC”广播接收器；系统早期 AMS 未就绪会失败，
-        // 稍后由延迟任务重试。
+        // 注册广播接收器（AMS 未就绪时延迟重试）
         registerApplyReceiver()
         Thread {
             try {
-                Thread.sleep(5000)
+                Thread.sleep(4000)
             } catch (_: InterruptedException) {
             }
             registerApplyReceiver()
+            // 兜底：Wi-Fi 服务较慢启动时按需解析其 ClassLoader 再装一次
+            if (nativeInstance == null) {
+                resolveWifiClassLoader()?.let { tryHookWifiClasses(it) }
+            }
         }.apply { isDaemon = true }.start()
 
         instance.log(Log.INFO, TAG, "WifiServiceHooker installed")
     }
 
     // ------------------------------------------------------------------
-    // 类查找与 Hook 安装
+    // 类发现与 Hook 安装
     // ------------------------------------------------------------------
 
+    /** 遍历多厂商目标类安装 Hook */
+    private fun tryHookWifiClasses(loader: ClassLoader) {
+        (TARGET_WIFI_NATIVE_CLASSES + TARGET_WIFI_HAL_CLASSES).forEach { name ->
+            hookClass(name, loader)
+        }
+    }
+
     /**
-     * 监听 SystemServiceManager.loadClassFromLoader，当 WifiService 类被加载时
-     * 使用其 ClassLoader 重新 Hook WifiNative（保证类已就绪）。
+     * 对单个目标类安装：缓存实例（构造器）、拦截 setSta/setApMacAddress、
+     * 记录接口名。
+     */
+    private fun hookClass(clazzName: String, loader: ClassLoader) {
+        val inst = module ?: return
+        val clazz = runCatching { Class.forName(clazzName, false, loader) }.getOrNull()
+        if (clazz == null) {
+            inst.log(Log.DEBUG, TAG, "class not found: $clazzName")
+            return
+        }
+        // 缓存实例：Hook 全部构造器
+        clazz.declaredConstructors.forEach { ctor ->
+            runCatching {
+                inst.hook(ctor).intercept { chain ->
+                    val result = chain.proceed()
+                    val obj = chain.thisObject
+                    if (obj != null) {
+                        nativeInstance = obj
+                        inst.log(Log.DEBUG, TAG, "instance cached from $clazzName")
+                    }
+                    result
+                }
+            }.onFailure { inst.log(Log.DEBUG, TAG, "ctor hook failed on $clazzName: $it") }
+        }
+        // 拦截 setStaMacAddress / setApMacAddress
+        hookStaApMethod(clazz, "STA")
+        hookStaApMethod(clazz, "AP")
+        // 记录 STA 接口名
+        clazz.declaredMethods.firstOrNull { it.name == "setupForClientMode" }?.let { m ->
+            runCatching {
+                inst.hook(m).intercept { chain ->
+                    val result = chain.proceed()
+                    (chain.getArg(0) as? String)?.let { lastIface = it }
+                    result
+                }
+            }.onFailure { inst.log(Log.DEBUG, TAG, "setupForClientMode hook failed on $clazzName: $it") }
+        }
+    }
+
+    /**
+     * 监听 SystemServiceManager.loadClassFromLoader，捕获 Android 12+ APEX
+     * service-wifi.jar 动态加载时机。
      */
     private fun hookSystemServiceManager(loader: ClassLoader) {
         val inst = module ?: return
@@ -153,93 +250,64 @@ object WifiServiceHooker {
                 if (chain.getArg(0) == "com.android.server.wifi.WifiService") {
                     val cl = chain.getArg(1) as? ClassLoader
                     if (cl != null) {
-                        inst.log(Log.DEBUG, TAG, "WifiService class loaded, (re)installing WifiNative hooks")
-                        tryHookWifiNative(cl)
+                        inst.log(Log.DEBUG, TAG, "WifiService loaded via SystemServiceManager, reinstalling hooks")
+                        tryHookWifiClasses(cl)
                     }
                 }
                 result
             }
-        }.onFailure {
-            inst.log(Log.DEBUG, TAG, "SystemServiceManager hook failed: $it")
-        }
+        }.onFailure { inst.log(Log.DEBUG, TAG, "SystemServiceManager hook failed: $it") }
     }
 
     /**
-     * Hook WifiNative：缓存实例（构造器）、拦截 setStaMacAddress/setApMacAddress、
-     * 记录 STA 接口名。
+     * 监听 [android.os.ServiceManager.addService]，捕获 `wifi` 服务注册时的
+     * 独立 ClassLoader（部分厂商 ROM 用独立 classpath 加载 Wi-Fi 栈）。
      */
-    private fun tryHookWifiNative(loader: ClassLoader) {
+    private fun hookServiceManager(loader: ClassLoader) {
         val inst = module ?: return
-        val nativeClass = runCatching {
-            Class.forName(WIFI_NATIVE_CLASS, false, loader)
-        }.getOrNull()
-        if (nativeClass == null) {
-            inst.log(Log.WARN, TAG, "WifiNative class not found (will retry on WifiService load)")
-            return
-        }
-        // 诊断：打印可取 MAC 的系统方法
-        runCatching {
-            val vendorHal = runCatching { Class.forName(WIFI_VENDOR_HAL_CLASS, false, loader) }.getOrNull()
-            val macMethods = (nativeClass.declaredMethods + (vendorHal?.declaredMethods.orEmpty()))
-                .filter { it.name.contains("Mac", ignoreCase = true) }
-                .map { "${it.declaringClass.simpleName}.${it.name}(${it.parameterTypes.joinToString(",") { p -> p.simpleName }})" }
-                .distinct()
-                .sorted()
-            inst.log(Log.DEBUG, TAG, "Mac-related methods: $macMethods")
-        }.onFailure { inst.log(Log.DEBUG, TAG, "Method list dump failed: $it") }
-
-        // 缓存 WifiNative 实例：Hook 全部构造器，系统一创建实例即缓存
-        nativeClass.declaredConstructors.forEach { ctor ->
+        val sm = runCatching { Class.forName("android.os.ServiceManager", false, loader) }.getOrNull() ?: return
+        sm.declaredMethods.filter { it.name == "addService" && it.parameterTypes.size >= 2 }.forEach { method ->
             runCatching {
-                inst.hook(ctor).intercept { chain ->
+                inst.hook(method).intercept { chain ->
                     val result = chain.proceed()
-                    val obj = chain.thisObject
-                    if (obj != null) {
-                        nativeInstance = obj
-                        inst.log(Log.DEBUG, TAG, "WifiNative instance cached")
+                    val name = chain.getArg(0) as? String
+                    if (name != null && name.contains("wifi", ignoreCase = true)) {
+                        val binder = chain.getArg(1)
+                        val cl = binder?.javaClass?.classLoader
+                        if (cl != null) {
+                            inst.log(Log.DEBUG, TAG, "ServiceManager.addService($name) captured cl=$cl")
+                            tryHookWifiClasses(cl)
+                        }
                     }
                     result
                 }
-            }.onFailure { inst.log(Log.DEBUG, TAG, "ctor hook failed: $it") }
+            }.onFailure { inst.log(Log.DEBUG, TAG, "ServiceManager hook failed: $it") }
         }
-        // 拦截 setStaMacAddress / setApMacAddress（WifiNative 与 WifiVendorHal）
-        hookStaApMethods(WIFI_NATIVE_CLASS, loader, "STA")
-        hookStaApMethods(WIFI_NATIVE_CLASS, loader, "AP")
-        hookStaApMethods(WIFI_VENDOR_HAL_CLASS, loader, "STA")
-        hookStaApMethods(WIFI_VENDOR_HAL_CLASS, loader, "AP")
-        // 记录 STA 接口名
-        nativeClass.declaredMethods.firstOrNull { it.name == "setupForClientMode" }?.let { m ->
-            runCatching {
-                inst.hook(m).intercept { chain ->
-                    val result = chain.proceed()
-                    (chain.getArg(0) as? String)?.let { lastIface = it }
-                    result
-                }
-            }.onFailure { inst.log(Log.DEBUG, TAG, "setupForClientMode hook failed: $it") }
-        }
-        inst.log(Log.INFO, TAG, "WifiNative hooks installed")
     }
 
-    /**
-     * Hook 指定类上的 setStaMacAddress / setApMacAddress（(String, MacAddress) 签名）。
-     */
-    private fun hookStaApMethods(clazzName: String, loader: ClassLoader, type: String) {
+    /** 通过反射查询 `wifi` Binder 服务以获取其 ClassLoader */
+    private fun resolveWifiClassLoader(): ClassLoader? {
+        return runCatching {
+            val sm = Class.forName("android.os.ServiceManager")
+            val binder = sm.getMethod("getService", String::class.java).invoke(null, "wifi")
+            binder?.javaClass?.classLoader
+        }.getOrNull()
+    }
+
+    /** Hook 指定类上的 setSta/setApMacAddress（(String, MacAddress) 签名） */
+    private fun hookStaApMethod(clazz: Class<*>, type: String) {
         val inst = module ?: return
-        val clazz = runCatching { Class.forName(clazzName, false, loader) }.getOrNull() ?: return
         val methodName = if (type == "STA") "setStaMacAddress" else "setApMacAddress"
         val method = runCatching {
             clazz.getDeclaredMethod(methodName, String::class.java, MacAddress::class.java)
         }.getOrNull() ?: return
         runCatching {
             inst.hook(method).intercept { chain -> macIntercept(chain, type) }
-        }.onFailure {
-            inst.log(Log.DEBUG, TAG, "hook $methodName failed: $it")
-        }
+        }.onFailure { inst.log(Log.DEBUG, TAG, "hook $methodName on ${clazz.simpleName} failed: $it") }
     }
 
     /**
-     * 拦截 MAC 设置调用：根据偏好替换为自定义 MAC。
-     * 拦截链模型：修改参数后以 `chain.proceed(新参数)` 继续执行原方法。
+     * 拦截 MAC 设置调用：根据偏好替换为自定义 MAC，并记录 STA / AP 接口名。
      */
     private fun macIntercept(chain: Chain, type: String): Any? {
         val iface = chain.getArg(0) as? String
@@ -249,17 +317,23 @@ object WifiServiceHooker {
             return chain.proceed()
         }
         if (iface == null) return chain.proceed()
-        lastIface = iface
+        if (type == "STA") {
+            lastIface = iface
+        } else {
+            lastApIface = iface
+        }
         chain.thisObject?.let { nativeInstance = it }
-
-        // 系统就绪后（首次 MAC 调用时）确保接收器已注册
         registerApplyReceiver()
 
         // 广播系统当前 MAC 给应用（用于 UI 展示，尽力而为）
         (chain.getArg(1) as? MacAddress)?.let { broadcastMac(it.toString()) }
 
-        // AP 覆写开关：非 wlan0 的 AP 接口默认不替换，避免热点无法启动
-        if (iface.startsWith("wlan") && iface != "wlan0" && !apMacOverride) {
+        // AP 覆写开关：AP 接口只有在用户开启 AP 覆写时才替换
+        if (type == "AP" && !apMacOverride) {
+            return chain.proceed()
+        }
+        // STA 副接口保护：非主客户端接口（wlan0）默认不替换
+        if (type == "STA" && iface.startsWith("wlan") && iface != "wlan0") {
             return chain.proceed()
         }
         val custom = customMac
@@ -282,8 +356,7 @@ object WifiServiceHooker {
     // ------------------------------------------------------------------
 
     /**
-     * 注册接收 [ACTION_APPLY_MAC] / [ACTION_QUERY_MAC] 广播的接收器。
-     * system 未就绪时静默失败，稍后重试。
+     * 注册接收 [ACTION_APPLY_MAC] / [ACTION_CONFIG_CHANGED] / [ACTION_QUERY_MAC]。
      */
     private fun registerApplyReceiver() {
         if (applyReceiverRegistered) return
@@ -293,13 +366,17 @@ object WifiServiceHooker {
                 object : BroadcastReceiver() {
                     override fun onReceive(context: Context, intent: Intent) {
                         when (intent.action) {
-                            // 应用 MAC：广播可直接携带目标 MAC（不依赖跨进程偏好读取时序）
+                            // 应用 MAC（广播直接携带目标 MAC，不依赖跨进程偏好读取时序）
                             ACTION_APPLY_MAC -> {
                                 val mac = intent.getStringExtra(EXTRA_MAC)
-                                if (mac.isNullOrEmpty()) applyMacDirectly(null)
-                                else applyMacDirectly(mac)
+                                if (mac.isNullOrEmpty()) applyMacDirectly(null) else applyMacDirectly(mac)
                             }
-                            // 查询 MAC：回复 ACTION_MAC_DETECTED 携带当前系统 MAC
+                            // 设置变化（零点击）：立即把当前配置应用到 STA / AP
+                            ACTION_CONFIG_CHANGED -> {
+                                applyMacDirectly(null)
+                                if (apMacOverride) applyApMacDirectly()
+                            }
+                            // 查询 MAC：回发当前系统 MAC
                             ACTION_QUERY_MAC -> {
                                 val mac = currentSystemMac()
                                 if (mac.isNotEmpty()) {
@@ -312,33 +389,27 @@ object WifiServiceHooker {
                 },
                 IntentFilter().apply {
                     addAction(ACTION_APPLY_MAC)
+                    addAction(ACTION_CONFIG_CHANGED)
                     addAction(ACTION_QUERY_MAC)
                 },
                 Context.RECEIVER_EXPORTED
             )
             applyReceiverRegistered = true
-            module?.log(Log.DEBUG, TAG, "Apply/Query MAC receiver registered")
+            module?.log(Log.DEBUG, TAG, "MAC receiver registered")
         }.onFailure {
-            // system_server 启动早期 AMS 未就绪时首次注册会失败，
-            // 属正常现象（延迟任务会重试），仅降级为 debug 日志避免误报。
-            module?.log(Log.DEBUG, TAG, "Apply receiver not ready yet, will retry later")
+            module?.log(Log.DEBUG, TAG, "MAC receiver not ready yet, will retry later")
         }
     }
 
-    /**
-     * 直接应用 MAC（利用缓存的 WifiNative 实例与接口名）。
-     *
-     * @param intentMac 广播携带的目标 MAC；为空时回退读取偏好缓存。
-     *                  WifiNative 实例尚未缓存（重启后 WiFi 未初始化）时自动延迟重试。
-     */
+    /** 直接应用 STA 自定义 MAC（利用缓存的 WifiNative 实例与接口名）。 */
     private fun applyMacDirectly(intentMac: String?) {
         val mac = intentMac ?: customMac
-        if (mac.isEmpty()) return
+        if (mac.isEmpty() || !hookActive) return
         val native = nativeInstance
         val iface = lastIface
         if (native == null || iface == null) {
             module?.log(Log.WARN, TAG, "WifiNative not cached yet, will retry")
-            retryApplyMac(intentMac)
+            retryApply(intentMac, applyAp = false)
             return
         }
         runCatching {
@@ -346,16 +417,49 @@ object WifiServiceHooker {
                 .getDeclaredMethod("setStaMacAddress", String::class.java, MacAddress::class.java)
                 .also { setStaMethod = it }
             method.invoke(native, iface, MacAddress.fromString(mac))
-            module?.log(Log.DEBUG, TAG, "Directly applied MAC $mac on $iface")
-        }.onFailure {
-            module?.log(Log.ERROR, TAG, "Direct apply failed: $it")
-        }
+            module?.log(Log.DEBUG, TAG, "Directly applied STA MAC $mac on $iface")
+        }.onFailure { module?.log(Log.ERROR, TAG, "Direct STA apply failed: $it") }
     }
 
-    /**
-     * WifiNative 实例未就绪时延迟重试（最多约 8 秒），直到实例可用。
-     */
-    private fun retryApplyMac(intentMac: String?) {
+    /** 动态探测 AP 热点接口并应用自定义 MAC（仅当 AP 覆写开启）。 */
+    private fun applyApMacDirectly() {
+        if (!apMacOverride || !hookActive) return
+        val mac = customMac
+        if (mac.isEmpty()) return
+        val native = nativeInstance
+        if (native == null) {
+            module?.log(Log.WARN, TAG, "WifiNative not cached yet, will retry AP apply")
+            retryApply(null, applyAp = true)
+            return
+        }
+        // 优先使用最近捕获的 AP 接口，否则扫描活动网络接口
+        val iface = lastApIface ?: discoverApIface()
+        if (iface == null) {
+            module?.log(Log.DEBUG, TAG, "No AP interface found, skip direct AP apply")
+            return
+        }
+        runCatching {
+            val method = setApMethod ?: native.javaClass
+                .getDeclaredMethod("setApMacAddress", String::class.java, MacAddress::class.java)
+                .also { setApMethod = it }
+            method.invoke(native, iface, MacAddress.fromString(mac))
+            module?.log(Log.DEBUG, TAG, "Directly applied AP MAC $mac on $iface")
+        }.onFailure { module?.log(Log.ERROR, TAG, "Direct AP apply failed: $it") }
+    }
+
+    /** 扫描系统网络接口，识别 ap、softap、swlan、wlanN 等热点命名。 */
+    private fun discoverApIface(): String? {
+        return runCatching {
+            val names = (File("/sys/class/net").listFiles() ?: emptyArray()).mapNotNull { it.name }
+            names.firstOrNull { it.startsWith("softap") }
+                ?: names.firstOrNull { it.startsWith("ap") }
+                ?: names.firstOrNull { it.startsWith("swlan") }
+                ?: names.firstOrNull { Regex("^wlan[1-9]").matches(it) }
+        }.getOrNull()
+    }
+
+    /** 实例/接口未就绪时延迟重试（约 8 秒内）。 */
+    private fun retryApply(intentMac: String?, applyAp: Boolean) {
         Thread {
             repeat(8) {
                 try {
@@ -363,8 +467,8 @@ object WifiServiceHooker {
                 } catch (_: InterruptedException) {
                     return@Thread
                 }
-                if (nativeInstance != null && lastIface != null) {
-                    applyMacDirectly(intentMac)
+                if (nativeInstance != null) {
+                    if (applyAp) applyApMacDirectly() else applyMacDirectly(intentMac)
                     return@Thread
                 }
             }
@@ -372,9 +476,7 @@ object WifiServiceHooker {
         }.apply { isDaemon = true }.start()
     }
 
-    /**
-     * 将系统当前 MAC 广播给模块应用（显式组件，写回本地缓存用于状态卡展示）。
-     */
+    /** 将系统当前 MAC 广播给模块应用（显式组件，写回本地缓存用于状态卡展示）。 */
     private fun broadcastMac(mac: String) {
         val ctx = getSystemContext() ?: return
         runCatching {
@@ -385,9 +487,7 @@ object WifiServiceHooker {
             ctx.sendBroadcast(intent)
             lastBroadcastMac = mac
             module?.log(Log.DEBUG, TAG, "Broadcasted system MAC $mac")
-        }.onFailure {
-            module?.log(Log.ERROR, TAG, "Broadcast MAC failed: $it")
-        }
+        }.onFailure { module?.log(Log.ERROR, TAG, "Broadcast MAC failed: $it") }
     }
 
     // ------------------------------------------------------------------
@@ -395,17 +495,16 @@ object WifiServiceHooker {
     // ------------------------------------------------------------------
 
     /**
-     * 获取系统原始 MAC（出厂 MAC 优先，优先级从高到低）：
-     * 1. 反射 WifiNative.getFactoryMacAddress(iface)（Android 12+，返回硬件出厂 MAC）；
-     * 2. 解析高通 wlan_mac.bin（Intf0MacAddress）；
-     * 3. 最近一次系统设置的原始 MAC（替换前捕获）；
+     * 获取系统原始 MAC（出厂 MAC 优先，多厂商多级回退）：
+     * 1. 反射 WifiNative.getFactoryMacAddress / getStaFactoryMacAddress（Android 12+ / 厂商扩展）；
+     * 2. 读取厂商出厂 MAC 文件（高通 wlan_mac.bin、三星 EFS、/data/vendor 等）；
+     * 3. 最近一次系统设置的原始 MAC；
      * 4. getStaMacAddress / /sys/class/net/wlan0/address（仅回退）。
      */
     private fun currentSystemMac(): String {
         val native = nativeInstance
         val iface = lastIface ?: "wlan0"
         if (native != null) {
-            // 1. 出厂 MAC：尝试多种方法名与签名
             val factoryCandidates = listOf(
                 "getStaFactoryMacAddress" to arrayOf<Class<*>>(String::class.java),
                 "getStaFactoryMacAddress" to emptyArray<Class<*>>(),
@@ -423,24 +522,17 @@ object WifiServiceHooker {
                 }
             }
         } else {
-            module?.log(Log.DEBUG, TAG, "nativeInstance is null, skip getFactoryMacAddress")
+            module?.log(Log.DEBUG, TAG, "nativeInstance is null, skip factory MAC reflection")
         }
-        // 2. 高通 wlan_mac.bin（Intf0MacAddress=xxxxxxxxxxxx）
-        runCatching {
-            val f = File("/mnt/vendor/persist/qca6390/wlan_mac.bin")
-            module?.log(Log.DEBUG, TAG, "wlan_mac.bin exists=${f.exists()} readable=${f.canRead()}")
-            if (f.exists()) {
-                val text = f.readText()
-                val m = Regex("Intf0MacAddress=([0-9A-Fa-f]{12})").find(text)
-                m?.groupValues?.get(1)?.chunked(2)?.joinToString(":")?.uppercase()?.let {
-                    module?.log(Log.DEBUG, TAG, "Factory MAC via wlan_mac.bin: $it")
-                    return it
-                }
-            }
-        }.onFailure { module?.log(Log.DEBUG, TAG, "wlan_mac.bin read failed: $it") }
-        // 3. 最近一次系统设置的原始 MAC（替换前捕获）
+        // 厂商出厂 MAC 文件（通用解析）
+        for (path in FACTORY_MAC_FILES) {
+            val mac = readMacFromFile(path) ?: continue
+            module?.log(Log.DEBUG, TAG, "Factory MAC via $path: $mac")
+            return mac
+        }
+        // 最近一次系统设置的原始 MAC
         lastBroadcastMac?.takeIf { it.isNotEmpty() }?.let { return it }
-        // 4. 回退：当前生效 MAC
+        // 回退：当前生效 MAC
         if (native != null) {
             runCatching {
                 val m = native.javaClass.getDeclaredMethod("getStaMacAddress", String::class.java)
@@ -454,11 +546,28 @@ object WifiServiceHooker {
         return ""
     }
 
-    /**
-     * 获取系统框架 Context（惰性获取并缓存）。
-     * system_server 中 `ActivityThread.currentApplication()` 可能为 null，
-     * 因此回退到 `currentActivityThread().getSystemContext()`。
-     */
+    /** 从厂商文件内容中提取并格式化 MAC 地址。 */
+    private fun readMacFromFile(path: String): String? {
+        return runCatching {
+            val f = File(path)
+            if (!f.exists() || !f.canRead()) return null
+            val text = f.readText()
+            parseMacText(text)
+        }.getOrNull()
+    }
+
+    private fun parseMacText(text: String): String? {
+        // 优先匹配 xx:xx:xx:xx:xx:xx / xx-xx-xx-xx-xx-xx，再回退 12 位十六进制
+        val colon = Regex("(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}").find(text)
+        val raw = colon?.value ?: Regex("[0-9A-Fa-f]{12}").find(text)?.value ?: return null
+        val hex = raw.replace(":", "").replace("-", "")
+        if (hex.length != 12) return null
+        val mac = hex.chunked(2).joinToString(":").uppercase()
+        if (mac == "00:00:00:00:00:00") return null
+        return mac
+    }
+
+    /** 获取系统框架 Context（惰性获取并缓存）。 */
     private fun getSystemContext(): Context? {
         systemContext?.let { return it }
         val ctx = runCatching {

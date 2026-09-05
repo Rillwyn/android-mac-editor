@@ -6,6 +6,20 @@
 
 ---
 
+## [0.2.1] - 2026-09-05
+
+### 合并（社区 [PR #1](https://github.com/Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor/pull/1)，作者 [engamreldeeb](https://github.com/engamreldeeb)）
+- **多厂商兼容**：Hooker 现在会探测 AOSP 与 OEM 定制 `WifiNative`/`WifiVendorHal`（Samsung `Sem*`、Xiaomi `Miui*`、MediaTek `Mtk*`、Huawei `Hw*` 等），监听 `ServiceManager.addService("wifi")` 捕获延迟加载的 ClassLoader，动态识别热点接口（`ap*`、`softap*`、`swlan*`、`wlanN`），并读取厂商出厂 MAC 存储（三星 EFS、高通 `wlan_mac.bin` 等）——以上全部移植到 libxposed API 101 引擎上。
+- **零点击即时生效**：界面开关/MAC 变更即广播 `ACTION_CONFIG_CHANGED`，system_server 立即把自定义 MAC 应用到 STA 与（可选）AP 接口——无需手动“应用”或开关热点。
+- **阿拉伯语与 RTL**：完整 `values-ar` 翻译、RTL 布局支持（`android:supportsRtl`）、MAC 十六进制字段强制 LTR，设置页新增三语切换（English / 中文 / العربية）。
+- **共同署名**：作者/关于页更新为 **Rillwyn & Eng. Amr Eldeeb**。
+
+### 变更
+- 版本号升至 `0.2.1`（`versionCode` 12 → 13）；`module.prop` 同步。
+- 文档更新：README（EN/CN/AR）、CHANGELOG（EN/CN/AR）、发布说明。
+
+---
+
 ## [0.2.0] - 2026-09-05
 
 ### 核心重构：迁移至 libxposed Modern Xposed API（API 101）

@@ -212,6 +212,8 @@ class HomeFragment : Fragment(), App.ServiceStateListener {
             if (updatingUI) return@setOnCheckedChangeListener
             PrefManager.setHookState(requireContext(), checked)
             _updateStatusCard()
+            // 零点击：开关切换即同步配置并应用（无需再点“应用 MAC”）
+            requireContext().sendBroadcast(Intent(WifiServiceHooker.ACTION_CONFIG_CHANGED))
         }
     }
 
@@ -268,6 +270,8 @@ class HomeFragment : Fragment(), App.ServiceStateListener {
             Intent(WifiServiceHooker.ACTION_APPLY_MAC)
                 .putExtra(WifiServiceHooker.EXTRA_MAC, mac)
         )
+        // 零点击：同步最新配置（如 AP 覆写开时一并应用 AP 接口）
+        requireContext().sendBroadcast(Intent(WifiServiceHooker.ACTION_CONFIG_CHANGED))
         Snackbar.make(binding.root, R.string.mac_set_success, Snackbar.LENGTH_LONG)
             .setAction(R.string.open_wifi_settings) {
                 startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))

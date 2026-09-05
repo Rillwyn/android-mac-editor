@@ -49,6 +49,7 @@
     <string name="language_select">Language</string>
     <string name="language_english">English</string>
     <string name="language_chinese">中文</string>
+    <string name="language_arabic">العربية</string>
 
     <!-- Bottom navigation & toolbar titles -->
     <string name="tab_home">Home</string>
@@ -62,7 +63,7 @@
     <string name="about_original_project">Original Project</string>
     <string name="about_source_note">Based on the original project\'s approach, fully rewritten with the libxposed Modern Xposed API (API 101)</string>
     <string name="about_maintainer">Maintainer</string>
-    <string name="about_maintainer_name">Rillwyn</string>
+    <string name="about_maintainer_name">Rillwyn &amp; Eng. Amr Eldeeb</string>
     <string name="about_version">Version %s</string>
     <string name="about_this_project_url">https://github.com/Rillwyn/android-mac-editor</string>
     <string name="about_original_project_url">https://github.com/jqssun/android-mac-editor</string>
