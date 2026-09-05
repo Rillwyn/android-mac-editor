@@ -62,9 +62,21 @@
     <string name="about_this_project">本项目</string>
     <string name="about_original_project">原项目</string>
     <string name="about_source_note">基于原项目思路，使用 libxposed Modern Xposed API（API 101）全面重写</string>
-    <string name="about_maintainer">当前维护者</string>
-    <string name="about_maintainer_name">Rillwyn &amp; Eng. Amr Eldeeb</string>
+    <string name="about_maintainer">仓库维护者</string>
+    <string name="about_maintainer_name">Rillwyn</string>
     <string name="about_version">版本 %s</string>
     <string name="about_this_project_url">https://github.com/Rillwyn/android-mac-editor</string>
     <string name="about_original_project_url">https://github.com/jqssun/android-mac-editor</string>
+    <string name="about_contributors">贡献者</string>
+    <string name="about_contrib_rillwyn_name">Rillwyn</string>
+    <string name="about_contrib_amr_name">Eng. Amr Eldeeb</string>
+
+    <!-- 贡献者按版本做了什么（子级下拉内容） -->
+    <string-array name="about_contrib_rillwyn">
+        <item>v0.2.0 —— 核心重写：将模块迁移到 libxposed Modern Xposed API（API 101），重建 UI（Material 3 状态诊断、MAC 编辑器、三页导航）。</item>
+        <item>v0.2.1 —— 仓库维护：整合社区 PR #1（多厂商支持、零点击生效、阿拉伯语与 RTL），搭建 CI 自动构建/发布与文档。</item>
+    </string-array>
+    <string-array name="about_contrib_amr">
+        <item>v0.2.1 —— PR #1：多厂商 Wi-Fi 栈兼容、零点击即时生效、阿拉伯语本地化与 RTL 布局、文档与 KDoc。</item>
+    </string-array>
 </resources>

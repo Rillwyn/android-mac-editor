@@ -62,9 +62,21 @@
     <string name="about_this_project">This Project</string>
     <string name="about_original_project">Original Project</string>
     <string name="about_source_note">Based on the original project\'s approach, fully rewritten with the libxposed Modern Xposed API (API 101)</string>
-    <string name="about_maintainer">Maintainer</string>
-    <string name="about_maintainer_name">Rillwyn &amp; Eng. Amr Eldeeb</string>
+    <string name="about_maintainer">Repository Maintainer</string>
+    <string name="about_maintainer_name">Rillwyn</string>
     <string name="about_version">Version %s</string>
     <string name="about_this_project_url">https://github.com/Rillwyn/android-mac-editor</string>
     <string name="about_original_project_url">https://github.com/jqssun/android-mac-editor</string>
+    <string name="about_contributors">Contributors</string>
+    <string name="about_contrib_rillwyn_name">Rillwyn</string>
+    <string name="about_contrib_amr_name">Eng. Amr Eldeeb</string>
+
+    <!-- 贡献者按版本做了什么的说明（子级下拉内容） -->
+    <string-array name="about_contrib_rillwyn">
+        <item>v0.2.0 — Core rewrite: migrated the module to the libxposed Modern Xposed API (101) and rebuilt the UI (Material 3 status diagnostics, MAC editor, three-page navigation).</item>
+        <item>v0.2.1 — Maintainer: integrated community PR #1 (multi-vendor support, zero-click apply, Arabic &amp; RTL), set up CI auto-build/release and documentation.</item>
+    </string-array>
+    <string-array name="about_contrib_amr">
+        <item>v0.2.1 — PR #1: multi-vendor Wi-Fi stack compatibility, zero-click instant apply, Arabic localization &amp; RTL layouts, and documentation/KDoc.</item>
+    </string-array>
 </resources>

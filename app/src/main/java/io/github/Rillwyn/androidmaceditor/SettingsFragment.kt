@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import androidx.fragment.app.Fragment
 import io.github.Rillwyn.androidmaceditor.databinding.FragmentSettingsBinding
 import io.github.Rillwyn.androidmaceditor.hookers.WifiServiceHooker
@@ -28,7 +29,7 @@ class SettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        _setupLanguageToggle()
+        _setupLanguageDropdown()
         _setupSwitches()
         _refreshAll()
     }
@@ -43,23 +44,38 @@ class SettingsFragment : Fragment() {
         _binding = null
     }
 
-    /** 语言行内单选（English / 中文 / العربية）：点击即保存并重建 Activity（恢复原所在页面） */
-    private fun _setupLanguageToggle() {
-        binding.languageToggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (updatingUI || !isChecked) return@addOnButtonCheckedListener
-            val lang = when (checkedId) {
-                R.id.language_zh -> "zh"
-                R.id.language_ar -> "ar"
-                else -> "en"
-            }
-            // 记住当前 tab（设置页 index = 1），recreate 后由 MainActivity 恢复
-            requireContext().getSharedPreferences(MacBroadcastReceiver.PREFS_NAME, Context.MODE_PRIVATE)
-                .edit()
-                .putString("language", lang)
-                .putInt("savedTab", 1)
-                .apply()
-            requireActivity().recreate()
+    /** 语言选项：English / 中文 / العربية */
+    private data class LangOption(val code: String, val label: String)
+
+    private fun languageOptions(): List<LangOption> = listOf(
+        LangOption("en", getString(R.string.language_english)),
+        LangOption("zh", getString(R.string.language_chinese)),
+        LangOption("ar", getString(R.string.language_arabic))
+    )
+
+    /** 语言下拉框：选择后保存并重建 Activity（恢复原所在页面） */
+    private fun _setupLanguageDropdown() {
+        val options = languageOptions()
+        val adapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_list_item_1,
+            options.map { it.label }
+        )
+        binding.languageDropdown.setAdapter(adapter)
+        binding.languageDropdown.setOnItemClickListener { _, _, position, _ ->
+            if (updatingUI) return@setOnItemClickListener
+            applyLanguage(options[position].code)
         }
+    }
+
+    private fun applyLanguage(lang: String) {
+        // 记住当前 tab（设置页 index = 1），recreate 后由 MainActivity 恢复
+        requireContext().getSharedPreferences(MacBroadcastReceiver.PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString("language", lang)
+            .putInt("savedTab", 1)
+            .apply()
+        requireActivity().recreate()
     }
 
     private fun _setupSwitches() {
@@ -88,19 +104,18 @@ class SettingsFragment : Fragment() {
     private fun _refreshLanguageToggle() {
         val prefs = requireContext().getSharedPreferences(MacBroadcastReceiver.PREFS_NAME, Context.MODE_PRIVATE)
         val currentLang = prefs.getString("language", "") ?: ""
-        val checkedId = when (currentLang) {
-            "en" -> R.id.language_en
-            "zh" -> R.id.language_zh
-            "ar" -> R.id.language_ar
-            else -> {
-                val sysLang = resources.configuration.locales[0].language
-                when {
-                    sysLang.startsWith("zh") -> R.id.language_zh
-                    sysLang.startsWith("ar") -> R.id.language_ar
-                    else -> R.id.language_en
-                }
+        val code = if (currentLang.isNotEmpty()) {
+            currentLang
+        } else {
+            val sysLang = resources.configuration.locales[0].language
+            when {
+                sysLang.startsWith("zh") -> "zh"
+                sysLang.startsWith("ar") -> "ar"
+                else -> "en"
             }
         }
-        binding.languageToggle.check(checkedId)
+        val label = languageOptions().firstOrNull { it.code == code }?.label
+            ?: getString(R.string.language_english)
+        binding.languageDropdown.setText(label, false)
     }
 }

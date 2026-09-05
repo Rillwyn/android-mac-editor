@@ -37,6 +37,28 @@ class AboutFragment : Fragment() {
         binding.linkOriginalProject.setOnClickListener {
             openUrl(getString(R.string.about_original_project_url))
         }
+
+        // 贡献者：两级折叠（贡献者列表 -> 每人按版本做了什么的说明）
+        binding.rillwynNotesText.text =
+            resources.getStringArray(R.array.about_contrib_rillwyn).joinToString("\n")
+        binding.amrNotesText.text =
+            resources.getStringArray(R.array.about_contrib_amr).joinToString("\n")
+        binding.toggleContributors.setOnClickListener {
+            toggleArea(binding.contributorsList, binding.contributorsCaret)
+        }
+        binding.toggleRillwyn.setOnClickListener {
+            toggleArea(binding.rillwynNotesBox, binding.rillwynCaret)
+        }
+        binding.toggleAmr.setOnClickListener {
+            toggleArea(binding.amrNotesBox, binding.amrCaret)
+        }
+    }
+
+    /** 展开/收起区域并切换箭头符号 */
+    private fun toggleArea(area: View, caret: android.widget.TextView) {
+        val expanded = area.visibility == View.GONE
+        area.visibility = if (expanded) View.VISIBLE else View.GONE
+        caret.text = if (expanded) "▾" else "▸"
     }
 
     override fun onDestroyView() {
