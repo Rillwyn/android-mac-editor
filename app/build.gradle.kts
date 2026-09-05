@@ -12,13 +12,13 @@ val localProps = Properties().apply {
 
 android {
     namespace = "io.github.Rillwyn.androidmaceditor"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 29
         targetSdk = 36
-        versionCode = 14
-        versionName = "0.2.2"
+        versionCode = 17
+        versionName = "0.2.5"
         applicationId = "io.github.Rillwyn.androidmaceditor"
     }
 
@@ -85,7 +85,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.viewpager2)
 
-    // libxposed Modern Xposed API（API 101）
+    // libxposed Modern Xposed API（API 101/102）
     // compileOnly：模块代码编译期引用 io.github.libxposed.api.*，运行时由框架注入
     compileOnly(libs.libxposed.api)
     // service：模块 App 进程内与 Xposed 框架通信（Remote Preferences / 激活检测 / 作用域）

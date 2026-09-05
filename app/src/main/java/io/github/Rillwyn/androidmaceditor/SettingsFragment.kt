@@ -69,13 +69,30 @@ class SettingsFragment : Fragment() {
     }
 
     private fun applyLanguage(lang: String) {
-        // 记住当前 tab（设置页 index = 1），recreate 后由 MainActivity 恢复
+        // 记住当前 tab（设置页 index = 1），重启后由 MainActivity 恢复
         requireContext().getSharedPreferences(MacBroadcastReceiver.PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString("language", lang)
             .putInt("savedTab", 1)
             .apply()
-        requireActivity().recreate()
+
+        // 同步应用 AppCompatDelegate 全局语言/布局方向
+        val appLocale = if (lang.isNotEmpty()) {
+            androidx.core.os.LocaleListCompat.forLanguageTags(lang)
+        } else {
+            androidx.core.os.LocaleListCompat.getEmptyLocaleList()
+        }
+        androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(appLocale)
+
+        // 无动画平滑重启 Activity，确保 RTL/LTR 布局方向与资源立刻生效而无需手动杀死重开
+        val activity = requireActivity()
+        val intent = Intent(activity, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION
+        }
+        activity.finish()
+        activity.startActivity(intent)
+        @Suppress("DEPRECATION")
+        activity.overridePendingTransition(0, 0)
     }
 
     private fun _setupSwitches() {
