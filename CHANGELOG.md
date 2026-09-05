@@ -6,6 +6,15 @@ All changes are made under the terms of the original license (AGPL-3.0), and all
 
 ---
 
+## [0.2.2] - 2026-09-05
+
+### Changed (UI)
+- **Settings — language dropdown**: the three-button language selector was replaced with a Material 3 exposed-dropdown (`TextInputLayout` + `MaterialAutoCompleteTextView`): English / 中文 / العربية.
+- **About — maintainer & contributors**: the maintainer card now shows **Rillwyn** as repository maintainer; a new collapsible **Contributors** card lists **Rillwyn** and **Eng. Amr Eldeeb**, each with a per-version breakdown of what they did (EN / 中文 / العربية).
+- Version bumped to `0.2.2` (`versionCode` 13 → 14); `module.prop` synced.
+
+---
+
 ## [0.2.1] - 2026-09-05
 
 ### Merged (community PR #1 by [engamreldeeb](https://github.com/engamreldeeb))

@@ -1,13 +1,16 @@
 # 🇺🇸 English
 
-**v0.2.1 — Merge of community PR #1: multi-vendor support, zero-click apply, Arabic & RTL**
+**v0.2.2 — UI polish: language dropdown & About page contributor tree**
 
-## ✨ Highlights
-- **Multi-vendor compatibility**: automatic discovery of AOSP + OEM Wi-Fi stacks (Samsung `Sem*`, Xiaomi `Miui*`, MediaTek `Mtk*`, Huawei `Hw*`, …), `ServiceManager.addService("wifi")` watch, dynamic hotspot-interface detection (`ap*`, `softap*`, `swlan*`, `wlanN`) and vendor factory-MAC reading — all running on the **libxposed Modern Xposed API (API 101)** engine.
-- **Zero-click instant apply**: toggling switches or editing the MAC immediately syncs it to the STA and (optionally) AP interfaces — no manual “Apply MAC” or hotspot reset needed.
-- **Arabic & RTL**: full Arabic UI, RTL layout support, LTR-protected MAC fields, and a 3-way language switcher (English / 中文 / العربية).
-- **Material 3 UI** polish (unified status text, monospace MAC lines, clearable MAC input, `adjustPan` soft-keyboard behavior, official Material status icons).
-- Co-maintained by **Rillwyn & Eng. Amr Eldeeb**.
+## ✨ What’s new in v0.2.2
+- **Settings**: the language selector is now a Material 3 dropdown (English / 中文 / العربية) instead of three buttons.
+- **About**: shows **Rillwyn** as the repository maintainer, plus a collapsible **Contributors** card listing **Rillwyn** and **Eng. Amr Eldeeb** — each name expands to show what they did per version (EN / 中文 / العربية).
+
+## Cumulative highlights (since v0.2.0)
+- Built on the **libxposed Modern Xposed API (API 101)** — no legacy XposedBridge.
+- **Multi-vendor Wi-Fi support** (AOSP, Samsung, Xiaomi, MediaTek, Huawei…), dynamic hotspot-interface detection, vendor factory-MAC reading.
+- **Zero-click instant apply** — toggles and MAC edits sync to STA/AP interfaces immediately.
+- **Arabic & RTL** UI, Material 3 design, remote preferences, XposedService activation detection.
 
 ## ⚠️ Install notes
 - Root + LSPosed supporting the Modern Xposed API (API ≥ 101).
@@ -15,23 +18,26 @@
 - Package / app ID: `io.github.Rillwyn.androidmaceditor`.
 
 ## 🔗 Links
-- Main repository (source / issues / releases): https://github.com/Rillwyn/android-mac-editor
+- Main repository: https://github.com/Rillwyn/android-mac-editor
 - Xposed Modules Repo mirror: https://github.com/Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor
-- Docs: see README (EN/CN/AR) and CHANGELOG in the main repository.
+- Docs: README (EN/CN/AR) & CHANGELOG in the main repository.
 - Based on [MAC Editor](https://github.com/jqssun/android-mac-editor) by [jqssun](https://github.com/jqssun), AGPL-3.0.
 
 ---
 
 # 🇨🇳 中文
 
-**v0.2.1 —— 合并社区 PR #1：多厂商支持、零点击即时生效、阿拉伯语与 RTL**
+**v0.2.2 —— 界面打磨：语言下拉框与关于页贡献者树**
 
-## ✨ 亮点
-- **多厂商兼容**：自动探测 AOSP 与 OEM 定制 Wi‑Fi 栈（Samsung `Sem*`、Xiaomi `Miui*`、MediaTek `Mtk*`、Huawei `Hw*` 等），监听 `ServiceManager.addService("wifi")`，动态识别热点接口（`ap*`、`softap*`、`swlan*`、`wlanN`），读取厂商出厂 MAC —— 全部运行在 **libxposed Modern Xposed API（API 101）** 引擎上。
-- **零点击即时生效**：切换开关或修改 MAC 后立即同步到 STA 与（可选）AP 接口，无需手动点击“应用 MAC”或重启热点。
-- **阿拉伯语与 RTL**：完整阿拉伯语界面、RTL 布局支持、MAC 十六进制字段强制 LTR，设置页三语切换（English / 中文 / العربية）。
-- **Material 3 UI** 打磨：状态小字统一、等宽 MAC 小字、可清空的 MAC 输入框、`adjustPan` 软键盘行为、官方 Material 状态图标。
-- 共同维护：**Rillwyn & Eng. Amr Eldeeb**。
+## ✨ v0.2.2 更新内容
+- **设置页**：语言选择由三个按钮改为 Material 3 下拉框（English / 中文 / العربية）。
+- **关于页**：仓库维护者显示为 **Rillwyn**；新增可折叠“贡献者”卡，列出 **Rillwyn** 与 **Eng. Amr Eldeeb**——点开每个名字可查看各自在对应版本做了什么（中/英/阿三语）。
+
+## 累积亮点（自 v0.2.0）
+- 基于 **libxposed Modern Xposed API（API 101）**，不再依赖 legacy XposedBridge。
+- **多厂商 Wi-Fi 支持**（AOSP、Samsung、Xiaomi、MediaTek、Huawei 等）、动态热点接口识别、厂商出厂 MAC 读取。
+- **零点击即时生效**——开关/MAC 变更立即同步到 STA/AP 接口。
+- **阿拉伯语与 RTL** 界面、Material 3 设计、Remote Preferences、XposedService 激活检测。
 
 ## ⚠️ 安装说明
 - 需要 Root 并安装支持 Modern Xposed API（API ≥ 101）的 LSPosed。
@@ -39,7 +45,7 @@
 - 包名/应用 ID：`io.github.Rillwyn.androidmaceditor`。
 
 ## 🔗 相关链接
-- 主仓库（源码 / Issue / Release）：https://github.com/Rillwyn/android-mac-editor
+- 主仓库：https://github.com/Rillwyn/android-mac-editor
 - Xposed 模块镜像仓库：https://github.com/Xposed-Modules-Repo/io.github.Rillwyn.android-mac-editor
 - 文档见主仓库 README（EN/CN/AR）与 CHANGELOG。
 - 基于 [MAC Editor](https://github.com/jqssun/android-mac-editor)（作者 [jqssun](https://github.com/jqssun)），AGPL-3.0。
