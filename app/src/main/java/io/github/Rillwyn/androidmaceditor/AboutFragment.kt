@@ -54,11 +54,17 @@ class AboutFragment : Fragment() {
         }
     }
 
-    /** 展开/收起区域并切换箭头符号 */
+    /** 展开/收起区域并切换箭头符号，展开时请求滚动使内容完整可见 */
     private fun toggleArea(area: View, caret: android.widget.TextView) {
         val expanded = area.visibility == View.GONE
         area.visibility = if (expanded) View.VISIBLE else View.GONE
         caret.text = if (expanded) "▾" else "▸"
+        if (expanded) {
+            area.post {
+                val rect = android.graphics.Rect(0, 0, area.width, area.height)
+                area.requestRectangleOnScreen(rect, false)
+            }
+        }
     }
 
     override fun onDestroyView() {

@@ -1,211 +1,122 @@
-# MAC Editor — 代码总结（历史记录）
+# MAC Editor — 代码总结与架构文档
 
-> ⚠️ **本文档记录的是 v0.0.10（YukiHookAPI / legacy XposedBridge 时期）的实现细节，属历史存档。**
-> 当前源码已全面迁移至 **v0.2.0 + libxposed Modern Xposed API（API 101）**：入口改为 `MacEditorModule : XposedModule`（`META-INF/xposed/java_init.list`），偏好改为 Remote Preferences，激活检测改为 XposedService，包名统一为 `io.github.Rillwyn.androidmaceditor`。
-> 请以 [README.md](README.md) / [README_CN.md](README_CN.md) 与 [CHANGELOG.md](CHANGELOG.md) 为准。
+> **当前版本**：v0.2.5（libxposed Modern Xposed API 101/102）
+> **项目包名**：`io.github.Rillwyn.androidmaceditor`
+> **支持平台**：Android 12+，LSPosed 等现代 Xposed 框架（Modern Xposed API ≥ 101，针对 API 102）
 
-本文档总结 **MAC Editor for Android**（Xposed 模块）在 v0.0.10 完成 YukiHookAPI 重构后的代码结构、核心机制与构建方式。
+本文档总结 **MAC Editor for Android** 当前架构、核心机制、跨进程通信模型及构建方式。
 
-## 1. 项目简介
+---
 
-MAC Editor 是一款基于 Xposed/LSPosed 的 Android 模块，用于精细控制 Wi-Fi MAC 地址：
+## 1. 项目概览
 
-- 手动覆写 Wi-Fi（STA）与热点（AP）的 MAC 地址；
-- 强制开启系统隐藏的 MAC 随机化支持位（资源覆写）；
-- 通过应用界面配置，system_server 中实时生效。
+MAC Editor 是一款基于现代 libxposed API 构建的开源 Android Xposed 模块，用于精细控制 Wi-Fi MAC 地址：
 
-v0.0.10 之前，本项目处于“AI 半迁移”状态：源码引用了 YukiHookAPI 中**不存在**的 API（`YukiModule`、`Preferences.default`、`module.encounter`、`module.injectResource`、`module.logD` 等），导致项目**无法编译**，且存在三个运行时缺陷：
+- **手动覆写 MAC**：覆写客户端 Wi-Fi（STA）与移动热点（AP）的 MAC 地址；
+- **零点击即时生效**：UI 切换开关或修改 MAC 立即通过广播触发 `system_server` 实时同步并应用，无需手动反复开关热点或重启；
+- **多厂商 Wi-Fi 栈兼容**：自动探测 AOSP、Samsung（`Sem*`）、Xiaomi（`Miui*`）、MediaTek（`Mtk*`）、Huawei（`Hw*`）等厂商定制的 `WifiNative`/`WifiVendorHal` 栈，监听 `ServiceManager.addService("wifi")`，动态识别 `ap*` / `softap*` / `swlan*` / `wlanN` 等热点接口；
+- **硬件出厂 MAC 获取**：反射调用厂商 HAL 读取真实物理出厂 MAC，不受系统随机化或模块覆写影响；
+- **强制开启 MAC 随机化**：在 `system_server` 中拦截 `Resources.getBoolean`，强制开启系统隐藏的 MAC 随机化能力；
+- **多语言与动态 RTL 切换**：内置 English、中文与 العربية 完整本地化，支持实时 Material 3 下拉切换与无需重启应用的动态 RTL ↔ LTR 布局方向即时切换；
+- **关于页与贡献者树**：关于页展示维护者卡片与两级可折叠贡献者树（Rillwyn 与 Eng. Amr Eldeeb），支持纵向滚动、展开自动居中及防底部导航遮挡。
 
-1. 重启后应用误显示“未激活”；
-2. 重启后第一次点击“应用 MAC 地址”无效；
-3. 跨进程偏好设置（system_server 读不到应用设置的 MAC）断裂。
-
-v0.0.10 使用 **YukiHookAPI 1.3.2 的真实 API** 完全重写，上述问题均已修复。
+---
 
 ## 2. 技术栈与依赖
 
-| 依赖 | 版本 | 用途 |
+| 依赖库 / 工具 | 版本 | 用途 |
 |---|---|---|
-| `com.highcapable.yukihookapi:api` | 1.3.2（AAR） | YukiHookAPI 核心库（XposedBridge/LSPosed 兼容层） |
-| `com.highcapable.yukihookapi:ksp-xposed` | 1.3.2 | KSP 处理器：自动生成 `assets/xposed_init`、入口代理类、模块状态类 |
-| `com.google.devtools.ksp` | 2.2.10-2.0.2 | Kotlin Symbol Processing |
-| `de.robv.android.xposed:api`（本地 `libs/api-82.jar`） | 82 | XposedBridge 编译期 API（`compileOnly`，运行时由 LSPosed 提供） |
+| `io.github.libxposed:api` | 102.0.0（compileOnly） | 现代 Xposed API 核心接口（运行时由框架注入） |
+| `io.github.libxposed:service` | 102.0.0（implementation） | 模块 App 进程与 Xposed 框架通信（Remote Preferences / 激活检测 / 作用域） |
+| `androidx.appcompat:appcompat` | 1.6.1 | 基础应用兼容库、全局语言与布局方向管理（`AppCompatDelegate`） |
+| `com.google.android.material:material` | 1.12.0 | Material 3 设计组件（CardView、Switch、Exposed Dropdown 等） |
+| `androidx.viewpager2:viewpager2` | 1.1.0 | 主页/设置/关于 三页面滑动容器 |
 | AGP / Kotlin | 8.13.2 / 2.2.10 | 构建工具链 |
-| compileSdk / minSdk / targetSdk | 37 / 29 / 36 | SDK 版本（YukiHookAPI 1.3.2 依赖要求 compileSdk ≥ 37） |
+| compileSdk / minSdk / targetSdk | 37 / 29 / 36 | 编译与目标 Android SDK |
 
-> `de.robv.android.xposed:api:82` 不在 Maven Central（原托管于已归档的 JCenter），因此以本地 jar 形式放入 `app/libs/`。
+---
 
-## 3. 模块架构（按进程）
+## 3. 系统架构与进程模型
 
 ```
-┌─────────────────────────────┐        ┌──────────────────────────────────┐
-│  模块应用进程（UI）           │        │  system_server（宿主进程）        │
-│  MainActivity / PrefManager │        │  WifiServiceHooker（Hook 逻辑）   │
-│  context.prefs()  可读写    │        │  param.prefs()   XSharedPrefs 只读│
-│  YukiHookAPI.Status         │        │  Hook WifiNative / WifiVendorHal │
-└─────────────┬───────────────┘        └───────────────┬──────────────────┘
-              │  同一份偏好文件（io.github.Rillwyn.androidmaceditor.xml，0664）   │
-              └───────────────────────────────────────────────────────────┘
-┌─────────────────────────────┐
-│  Zygote                     │
-│  WifiConfigHooker           │
-│  resources().hook → 资源替换│
-└─────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    模块应用进程 (UI / App)                       │
+│  MainActivity (ViewPager2 + BottomNavigationView)               │
+│  ├── HomeFragment: 状态卡诊断、覆写开关、MAC 编辑器、即时应用     │
+│  ├── SettingsFragment: 语言下拉框(动态RTL)、强制随机化、AP覆写   │
+│  └── AboutFragment: 项目链接、维护者、可折叠贡献者树             │
+│  App: XposedServiceHelper 监听绑定状态、本地缓存与远程偏好同步   │
+└────────────────┬───────────────────────────────▲────────────────┘
+                 │                               │
+                 │ 1. ACTION_CONFIG_CHANGED /    │ 2. ACTION_MAC_DETECTED
+                 │    ACTION_APPLY_MAC 广播      │    广播回传系统出厂 MAC
+                 ▼                               │
+┌────────────────────────────────────────────────┴────────────────┐
+│                   system_server (系统服务宿主进程)               │
+│  MacEditorModule (XposedModule 入口)                            │
+│  ├── WifiServiceHooker:                                         │
+│  │   ├── Hook WifiNative / WifiVendorHal (AOSP + 多厂商 OEM)    │
+│  │   ├── 监听 ServiceManager.addService("wifi") 延迟加载        │
+│  │   ├── 动态 AP 接口识别 (wlan2, ap*, softap*, swlan*, wlanN) │
+│  │   ├── 读取出厂 MAC 存储 (Samsung EFS, Qualcomm wlan_mac.bin) │
+│  │   └── 注册广播接收器执行即时零点击 MAC 应用                 │
+│  └── WifiConfigHooker:                                          │
+│      └── Hook Resources.getBoolean(int) 强制返回 true           │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-- **模块应用进程**：UI 配置，向共享偏好写入 MAC/开关；通过 `YukiHookAPI.Status.isModuleActive` 读取真实激活状态；进程启动时经 `YukiHookDataChannel` 主动拉取系统 MAC。
-- **system_server**：`loadSystem` 作用域内安装 WifiNative/WifiVendorHal 钩子（`Member.hook` 新写法 + WifiService 加载时二次安装），通过 XSharedPreferences **只读**共享偏好，替换 MAC 参数，响应 MAC 拉取请求。
-- **资源钩子**：在 system_server 中 Hook `Resources.getBoolean`（强制 MAC 随机化支持位，开关即时生效）。
+---
 
-## 4. 核心文件说明
+## 4. 核心文件与职责分配
 
-| 文件 | 职责 |
+| 文件路径 | 职责说明 |
 |---|---|
-| `HookEntry.kt` | 模块入口（`@InjectYukiHookWithXposed` + `IYukiHookXposedInit`）。`onInit` 配置 YukiHookAPI（debug、强制偏好文件 0664）；`onHook` 在 `loadSystem` 中安装 WifiServiceHooker 与 WifiConfigHooker。 |
-| `App.kt` | 自定义 Application（继承 ModuleApplication）：进程启动时通过 dataChannel 主动拉取系统 MAC 并写本地缓存。 |
-| `hookers/WifiServiceHooker.kt` | system_server 侧核心 Hook：`Member.hook` 缓存 `WifiNative` 实例（构造器）、拦截 `setStaMacAddress`/`setApMacAddress`（含 `WifiVendorHal` 兼容）、WifiService 加载时二次安装、注册“应用 MAC”接收器（广播携带 MAC + 自动重试）、`getStaFactoryMacAddress` 出厂 MAC 获取、dataChannel 拉取响应。 |
-| `hookers/WifiConfigHooker.kt` | 在 system_server 中 Hook `Resources.getBoolean(int)`，按资源名返回 true（强制 MAC 随机化）。 |
-| `utils/PrefManager.kt` | 偏好设置访问入口，统一走 `context.prefs("io.github.Rillwyn.androidmaceditor")`（YukiHookPrefsBridge）。 |
-| `utils/MacUtils.kt` | MAC 校验与随机生成（未变）。 |
-| `utils/MacTextWatcher.kt` | 输入自动格式化（未变）。 |
-| `MainActivity.kt` | 主界面：状态卡（激活检测 + 动态副标题）、开关、MAC 输入与“应用 MAC”广播发送、onResume 主动拉取刷新。 |
-| `MacBroadcastReceiver.kt` | 接收 system_server 广播的系统 MAC，写本地缓存供 UI 展示（尽力而为）。 |
-| `AndroidManifest.xml` | 指定 `App`（继承 ModuleApplication）；传统 Xposed 模块声明（`MODULE_SETTINGS`、`xposedmodule`/`xposeddescription`/`xposedminversion`/`xposedscope`）。 |
+| `MacEditorModule.kt` | 模块入口（继承 `XposedModule`）。在 `onSystemServerStarting` 中向 `system_server` 安装 `WifiServiceHooker` 与 `WifiConfigHooker`。 |
+| `App.kt` | 应用程序入口（实现 `XposedServiceHelper.OnServiceListener`）。管理框架服务绑定状态、Remote Preferences 与本地偏好同步。 |
+| `MainActivity.kt` | 容器 Activity。管理三页 Fragment 导航、工具栏联动、以及动态 RTL/LTR 布局方向控制（`attachBaseContext`、`applyOverrideConfiguration`、`decorView` 布局方向绑定）。 |
+| `HomeFragment.kt` | 主页逻辑。状态卡实时诊断（框架名/版本/API/作用域）、MAC 地址管理、手动/自动生成 MAC、广播发送。 |
+| `SettingsFragment.kt` | 设置页逻辑。Material 3 语言下拉选择（English / 中文 / العربية）、调用 `AppCompatDelegate.setApplicationLocales` 与平滑重启、强制随机化开关与 AP 覆写开关。 |
+| `AboutFragment.kt` | 关于页逻辑。展示项目 URL、维护者信息、多层级可折叠贡献者树（点击展开自动平滑滚入可视区域）。 |
+| `hookers/WifiServiceHooker.kt` | 核心 Hook 逻辑。多厂商 WifiNative/VendorHal 方法拦截、动态接口探测、零点击即时配置响应、出厂 MAC 探测。 |
+| `hookers/WifiConfigHooker.kt` | 拦截 `Resources.getBoolean(int)`，针对 `config_wifi_*_mac_randomization_supported` 返回 true。 |
+| `META-INF/xposed/module.prop` | 模块声明文件：`minApiVersion=101`、`targetApiVersion=102`、`staticScope=true`。 |
+| `META-INF/xposed/java_init.list` | 声明现代入口类 `io.github.Rillwyn.androidmaceditor.MacEditorModule`。 |
+| `META-INF/xposed/scope.list` | 声明模块作用域为 `system`（系统框架）。 |
 
-## 5. 关键机制详解
+---
 
-### 5.1 模块入口与 KSP 生成
+## 5. 关键机制说明
 
-```kotlin
-@InjectYukiHookWithXposed
-class HookEntry : IYukiHookXposedInit {
-    override fun onInit() { YukiHookAPI.configs { isDebug = BuildConfig.DEBUG; isEnableHookSharedPreferences = true } }
-    override fun onHook() = encase {
-        loadSystem {
-            WifiServiceHooker.hook(this)
-            WifiConfigHooker.hook(this)
-        }
-    }
-}
-```
+### 5.1 现代 API 101/102 规范与元数据
+- 模块入口完全基于 `io.github.libxposed`，不再依赖任何 Legacy XposedBridge 或 YukiHookAPI；
+- `module.prop` 指定 `minApiVersion=101` 与 `targetApiVersion=102`，使模块既能运行于主流 API 101 框架（如 LSPosed 1.9+），又能充分兼容 API 102 现代规范（如 Vector 与新版框架）；
+- `packaging` 配置将 `META-INF/xposed/*` 打包至 APK 根目录，供框架精确识别。
 
-KSP 处理器（`ksp-xposed`）自动生成：
+### 5.2 动态 RTL / LTR 实时切换机制
+- 语言选择不仅更新文本资源的 `Locale`，更通过 `Configuration.setLayoutDirection(locale)` 正确计算 `layoutDirection`；
+- 在 `MainActivity` 重写 `applyOverrideConfiguration` 并于 `onCreate` 直接指定 `window.decorView.layoutDirection` 与 `binding.root.layoutDirection`；
+- 在设置中选择语言后，通过 `AppCompatDelegate.setApplicationLocales` 同步全局语言，并通过 `FLAG_ACTIVITY_CLEAR_TOP or FLAG_ACTIVITY_NO_ANIMATION` 无闪烁平滑重启，实现 **无需手动杀进程重开** 的即时布局方向切换。
 
-- `assets/xposed_init` → 指向 `io.github.Rillwyn.androidmaceditor.HookEntry_YukiHookXposedInit`（LSPosed 据此加载模块）；
-- 入口代理类（`IXposedHookZygoteInit` / `IXposedHookLoadPackage` / `IXposedHookInitPackageResources` 实现）与 `HookEntry_Impl`；
-- `YukiXposedModuleStatus_Impl_Impl`：模块状态类。LSPosed 检测到该类后，会向模块自身进程**注入真实的激活状态**，供 `YukiHookAPI.Status.isModuleActive` 读取；
-- `META-INF/yukihookapi_init`：模块入口标记（Java resources，打包到 APK 根 `META-INF/`）。
+### 5.3 关于页滚动与展开居中保障
+- 解决嵌套滑动与屏幕溢出：`NestedScrollView` 配置 `fillViewport="true"`、`clipToPadding="false"` 及 `paddingBottom="96dp"`，彻底避免内容被浮动的 `BottomNavigationView` 遮挡；
+- 开启纵向滚动条 `android:scrollbars="vertical"`；
+- 点击展开贡献者列表或版本明细时，通过 `area.requestRectangleOnScreen` 自动向父级滑动容器请求滚动，将展开的内容完整平滑带入可视屏幕中。
 
-因此模块入口**不需要**手工维护 `META-INF/xposed/java_init.list`。此外，项目在 `src/main/resources/META-INF/xposed/` 放置了两个 LSPosed 元数据文件（`src/main/resources` 是 Java resources，会打包到 **APK 根目录的 `META-INF/`**，这正是 LSPosed 读取的位置；**不要**放到 `src/main/assets/` 下，那会变成 `assets/META-INF/xposed/`——那是 libxposed 新式模块的位置，LSPosed 不会从这里读 XposedBridge 模块的元数据）：
+### 5.4 零点击即时生效 (Instant Apply)
+- 开关变动与 MAC 编辑完成时，模块发送标准广播 `ACTION_CONFIG_CHANGED`；
+- `system_server` 侧的接收器立即取出最新配置并通过已缓存的 `WifiNative`/`WifiVendorHal` 实例调用 `setStaMacAddress` 与 `setApMacAddress`，无需用户每次手动点击“应用”按钮或开关热点。
 
-```
-app-release.apk（解压后）
-├── assets/
-│   └── xposed_init              # KSP 生成：入口 io.github.Rillwyn.androidmaceditor.HookEntry_YukiHookXposedInit
-└── META-INF/                    # APK 根（来自 src/main/resources，Java resources）
-    ├── xposed/
-    │   ├── module.prop          # minApiVersion=101 / targetApiVersion=101 / staticScope=true
-    │   └── scope.list           # system（静态作用域声明）
-    └── yukihookapi_init         # KSP 生成：模块入口标记
-```
+---
 
-> ⚠️ **不要创建 `assets/META-INF/xposed/java_init.list`**：只要该文件存在且非空，LSPosed 就会判定模块为 libxposed（新式）模块并**只**走 libxposed 加载路径，而 YukiHookAPI 1.3.2 的入口实现的是 XposedBridge（`de.robv.android.xposed.*`）接口，无法通过 libxposed 加载，模块将直接失效。模块识别完全由 `assets/xposed_init` 负责。
-
-### 5.2 跨进程偏好共享（YukiHookPrefsBridge）
-
-```kotlin
-// 模块应用内（可读写）
-context.prefs("io.github.Rillwyn.androidmaceditor").edit { putString("customMac", mac) }
-// system_server 内（只读，XSharedPreferences）
-param.prefs("io.github.Rillwyn.androidmaceditor").getString("customMac", "")
-```
-
-- 同一文件名（`io.github.Rillwyn.androidmaceditor.xml`）兼容旧版本数据；
-- 写入时 `isEnableHookSharedPreferences` 强制文件权限 0664，保证宿主可读；
-- system_server 每次读取都会 `reload()`，设置变更**实时**生效，无需额外监听器。
-
-### 5.3 激活状态检测
-
-```kotlin
-val moduleActive = YukiHookAPI.Status.isModuleActive
-```
-
-由 LSPosed 注入的真实状态，替代旧版“是否收到系统 MAC 广播”的瞬态判断。重启后立即准确；状态卡逻辑：
-
-| 状态 | 显示 |
-|---|---|
-| 未激活（`isModuleActive == false`） | 未激活 |
-| 已激活但开关关闭 | 已激活 / Hook 关闭 |
-| 已激活且开关开启 | 已激活 / 服务运行中 |
-
-### 5.4 MAC 覆写与“应用 MAC”
-
-- **Hook 方式**：统一使用 `Member.hook`（YukiHookAPI 推荐的新写法）—— 反射 `getDeclaredMethod` / `declaredConstructors` 直接 Hook 目标成员，避免旧 finder 写法（`method { }.hook { }`）在部分环境的重载解析异常。
-- **实例缓存**：Hook `WifiNative` 全部构造器，实例一创建即缓存。
-- **参数替换**：拦截 `setStaMacAddress(String, MacAddress)` / `setApMacAddress(...)` 的 `before` 回调，读偏好后 `args(1).set(MacAddress.fromString(customMac))`；同时 Hook `WifiVendorHal` 同名方法兼容不同 Android 版本。
-- **AP 覆写开关**：非 `wlan0` 的 AP 接口且未开启覆写时放行，避免热点无法启动。
-- **Hook 安装双保险**：`loadSystem` 时直接 Hook + 监听 `SystemServiceManager.loadClassFromLoader`，WifiService 类加载时用其 ClassLoader 二次安装（任何加载时序都能 hook 上）。
-- **“应用 MAC”链路**：应用点击 → 广播 `ACTION_APPLY_MAC`（**直接携带目标 MAC**，不依赖跨进程 prefs 读取时序）→ system_server 接收器 → 用缓存实例反射调用 `setStaMacAddress`；实例未就绪时**自动延迟重试**（约 8 秒）→ 首次点击立即生效。
-- **MAC 展示**：`handleMacCall` 在替换前将系统原始 MAC 广播写回应用本地缓存（`deviceMac`）。
-
-### 5.5 资源钩子（强制 MAC 随机化）
-
-```kotlin
-val method = Resources::class.java.getDeclaredMethod("getBoolean", Int::class.javaPrimitiveType)
-method.hook {
-    after {
-        // 按资源名拦截：config_wifi_*_mac_randomization_supported → result = true
-    }
-}
-```
-
-在 **system_server 中 Hook `Resources.getBoolean(int)`**（普通方法 Hook，兼容 LSPosed 等不支持 XResources 资源替换的框架），开关切换**即时生效**（无需重启）。
-
-### 5.6 出厂 MAC 获取与主动拉取（YukiHookDataChannel）
-
-```kotlin
-// system_server：响应应用请求，回复出厂 MAC
-param.dataChannel.with {
-    wait<String>("mac_request") { _ ->
-        val mac = currentSystemMac()          // getStaFactoryMacAddress 优先
-        put("mac_result", mac)
-    }
-}
-// 模块应用（App.onCreate / MainActivity.onResume）：主动请求
-dataChannel("android").with {
-    wait<String>("mac_result") { mac -> /* 写本地缓存 deviceMac */ }
-    put("mac_request", "true")
-}
-```
-
-- **出厂 MAC**：反射 `WifiVendorHal.getStaFactoryMacAddress(iface)`（ColorOS/OPPO 方法名；AOSP 标准 `getFactoryMacAddress` 也已尝试；另有 wlan_mac.bin 解析、替换前捕获值等回退）—— 不受随机化与模块替换影响。
-- **主动拉取**：应用进程启动（`App.onCreate`）即通过 `YukiHookDataChannel` 拉取并缓存，打开界面**立即显示系统 MAC**（不再依赖 WiFi 广播时机）。
-
-## 6. 构建方式
+## 6. 构建与发布
 
 ```bash
-# 依赖：JDK 21、Android SDK（platform 37、build-tools 36.0.0）
-# local.properties 需指向本机 SDK：sdk.dir=...
-./gradlew :app:assembleDebug        # 调试包
-./gradlew :app:assembleRelease      # 发布包（需签名配置）
+# 调试构建
+./gradlew assembleDebug
+
+# 发布构建（需要配置签名或使用 CI 自动构建）
+./gradlew assembleRelease
 ```
 
-产物：`app/build/outputs/apk/<variant>/app-<variant>.apk`。
-
-## 7. 验证情况（v0.0.10）
-
-已在本机 Android 14 模拟器（AVD `Small_Phone`）与 **OnePlus 8T（ColorOS 14，APatch + Zygisk-LSPosed）真机** 完成：
-
-- ✅ `assembleRelease` 构建成功（仅 YukiHookAPI 1.x Legacy API 弃用警告）；
-- ✅ APK 内含 KSP 生成的 `assets/xposed_init` 与 Manifest 传统 Xposed 声明（`MODULE_SETTINGS` + `xposedmodule` 等 meta-data），LSPosed 正确识别且不会自动禁用；
-- ✅ 模块注入 system_server：资源钩子（`Forced config_wifi_* to true`）、`WifiNative hooks installed`、`WifiNative instance cached`；
-- ✅ **一次点击“应用 MAC 地址”立即生效**（`Directly applied MAC ... on wlan0`）；
-- ✅ **“系统 MAC”显示出厂 MAC**（真机 `getStaFactoryMacAddress` 返回 `AC:5F:EA:4D:6F:55`，与 wlan_mac.bin 一致）；
-- ✅ 打开应用经 dataChannel 主动拉取并缓存（`Replied system MAC ... via data channel`）；
-- ✅ 状态卡片副标题动态显示当前实际使用的 MAC。
-
-## 8. 已知限制与后续改进
-
-- `setStaMacAddress`/`setApMacAddress` 以显式 `(String, MacAddress)` 签名匹配，个别厂商修改签名时该钩子会自动跳过，其他钩子不受影响；
-- 出厂 MAC 获取依赖 `WifiVendorHal.getStaFactoryMacAddress`（ColorOS/OPPO）或 AOSP `getFactoryMacAddress`，个别厂商两者都缺失时回退到 wlan_mac.bin 解析或“替换前捕获值”；
-- system_server → 应用的数据通信目前为“广播（请求/应用 MAC）+ dataChannel（主动拉取回复）”混用，后续可统一迁移到 `YukiHookDataChannel`。
+构建产物位于 `app/build/outputs/apk/release/app-release.apk`。
+CI 工作流：推送 `v*` tag 自动触发 GitHub Actions 构建并发布 Release 产物及 Xposed Modules Repo 镜像。

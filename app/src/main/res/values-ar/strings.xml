@@ -50,7 +50,7 @@
     <string name="toolbar_about">حول</string>
     <string name="about_this_project">هذا المشروع</string>
     <string name="about_original_project">المشروع الأصلي</string>
-    <string name="about_source_note">أُعيدت كتابته بالكامل اعتمادًا على أفكار المشروع الأصلي باستخدام libxposed Modern Xposed API (API 101)</string>
+    <string name="about_source_note">أُعيدت كتابته بالكامل اعتمادًا على أفكار المشروع الأصلي باستخدام libxposed Modern Xposed API (API 101/102)</string>
     <string name="about_maintainer">مسؤول المستودع</string>
     <string name="about_maintainer_name">Rillwyn</string>
     <string name="about_version">الإصدار %s</string>
@@ -63,8 +63,10 @@
     <string-array name="about_contrib_rillwyn">
         <item>v0.2.0 — إعادة كتابة شاملة: ترحيل الوحدة إلى libxposed Modern Xposed API (101) وإعادة بناء الواجهة (Material 3 وتشخيص الحالة ومحرّر MAC).</item>
         <item>v0.2.1 — مسؤول المستودع: دمج مساهمة PR #1 (توافق متعدد الشركات، تطبيق فوري، العربية وRTL) وإعداد البناء/الإصدار الآلي والوثائق.</item>
+        <item>v0.2.5 — مسؤول المستودع: الترقية لدعم libxposed API 102، وتحسينات الواجهة (قائمة اللغات المنسدلة وإصلاح تمرير صفحة حول) وتنسيق الإصدار.</item>
     </string-array>
     <string-array name="about_contrib_amr">
         <item>v0.2.1 — PR #1: توافق شامل مع أنظمة Wi-Fi متعددة الشركات، تطبيق فوري بدون نقرة، تعريب كامل وواجهات RTL، والتوثيق/KDoc.</item>
+        <item>v0.2.5 — تبديل فوري وديناميكي لاتجاه RTL/LTR بدون الحاجة لإعادة تشغيل التطبيق يدويًا، وإصلاح مشكلة التمرير والتجاوز في صفحة حول مع التمرير التلقائي عند التوسيع، والتكامل مع API 102 الحديث.</item>
     </string-array>
 </resources>

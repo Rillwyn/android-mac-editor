@@ -15,20 +15,39 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
 
     override fun attachBaseContext(newBase: Context) {
-        // 语言处理（保持原逻辑，使用模块自身本地缓存）
         val prefs = newBase.getSharedPreferences(MacBroadcastReceiver.PREFS_NAME, Context.MODE_PRIVATE)
         val lang = prefs.getString("language", "") ?: ""
-        val locale = if (lang.isNotEmpty()) Locale(lang) else Locale.getDefault()
+        val locale = if (lang.isNotEmpty()) Locale.forLanguageTag(lang) else Locale.getDefault()
         Locale.setDefault(locale)
         val config = Configuration(newBase.resources.configuration)
         config.setLocale(locale)
+        config.setLayoutDirection(locale)
         val context = newBase.createConfigurationContext(config)
         super.attachBaseContext(context)
     }
 
+    override fun applyOverrideConfiguration(overrideConfiguration: Configuration?) {
+        if (overrideConfiguration != null) {
+            val prefs = getSharedPreferences(MacBroadcastReceiver.PREFS_NAME, Context.MODE_PRIVATE)
+            val lang = prefs.getString("language", "") ?: ""
+            val locale = if (lang.isNotEmpty()) Locale.forLanguageTag(lang) else Locale.getDefault()
+            overrideConfiguration.setLocale(locale)
+            overrideConfiguration.setLayoutDirection(locale)
+        }
+        super.applyOverrideConfiguration(overrideConfiguration)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val prefs = getSharedPreferences(MacBroadcastReceiver.PREFS_NAME, Context.MODE_PRIVATE)
+        val lang = prefs.getString("language", "") ?: ""
+        val locale = if (lang.isNotEmpty()) Locale.forLanguageTag(lang) else Locale.getDefault()
+        val isRtl = android.text.TextUtils.getLayoutDirectionFromLocale(locale) == android.view.View.LAYOUT_DIRECTION_RTL
+        val layoutDir = if (isRtl) android.view.View.LAYOUT_DIRECTION_RTL else android.view.View.LAYOUT_DIRECTION_LTR
+        window.decorView.layoutDirection = layoutDir
+
         binding = ActivityMainBinding.inflate(layoutInflater)
+        binding.root.layoutDirection = layoutDir
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
 
